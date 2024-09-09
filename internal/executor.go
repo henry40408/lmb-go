@@ -1,11 +1,23 @@
 package internal
 
 import (
-	"github.com/yuin/gopher-lua"
+	"io"
+	"os"
+
+	lua "github.com/yuin/gopher-lua"
 )
 
 type Executor struct {
-	Script string
+	L *lua.LState
+}
+
+func NewExecutor() Executor {
+	L := lua.NewState()
+	return Executor{L: L}
+}
+
+func (e *Executor) Close() {
+	e.L.Close()
 }
 
 func fromLuaValue(lv lua.LValue) interface{} {
@@ -38,19 +50,30 @@ func fromLuaValue(lv lua.LValue) interface{} {
 	}
 }
 
-func (e *Executor) Eval() (interface{}, error) {
-	L := lua.NewState()
-	defer L.Close()
-
-	if err := L.DoString(e.Script); err != nil {
+func (e *Executor) Eval(script string) (interface{}, error) {
+	if err := e.L.DoString(script); err != nil {
 		return nil, err
 	}
 
-	if L.GetTop() > 0 {
-		result := L.Get(-1)
-		L.Pop(1)
+	if e.L.GetTop() > 0 {
+		result := e.L.Get(-1)
+		e.L.Pop(1)
 		return fromLuaValue(result), nil
 	}
 
 	return nil, nil
+}
+
+func (e *Executor) EvalFile(filePath string) (interface{}, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	script, err := io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+	return e.Eval(string(script))
 }

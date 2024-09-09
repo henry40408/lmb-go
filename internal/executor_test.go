@@ -1,12 +1,13 @@
 package internal
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestExectue(t *testing.T) {
+func TestEval(t *testing.T) {
 	testCases := []struct {
 		name     string
 		script   string
@@ -21,10 +22,22 @@ func TestExectue(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			s := Executor{Script: tc.script}
-			res, err := s.Eval()
+			e := NewExecutor()
+			defer e.Close()
+			res, err := e.Eval(tc.script)
 			assert.NoError(t, err)
-			assert.Equal(t, res, tc.expected, res, "expected %v to be %v", res, tc.expected)
+			assert.Equal(t, tc.expected, res)
 		})
+	}
+}
+
+func TestEvalFile(t *testing.T) {
+	matches, err := filepath.Glob("../lua-examples/*.lua")
+	assert.NoError(t, err)
+	for _, path := range matches {
+		e := NewExecutor()
+		defer e.Close()
+		_, err := e.EvalFile(path)
+		assert.NoError(t, err, path)
 	}
 }
