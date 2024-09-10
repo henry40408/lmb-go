@@ -8,6 +8,7 @@ import (
 	httpMod "github.com/cjoudrey/gluahttp"
 	urlMod "github.com/cjoudrey/gluaurl"
 	logMod "github.com/cosmotek/loguago"
+	"github.com/henry40408/lmb/internal/lmbMod"
 	jsonMod "github.com/layeh/gopher-json"
 	"github.com/rs/zerolog"
 	cryptoMod "github.com/tengattack/gluacrypto"
@@ -33,6 +34,9 @@ func NewExecutor() Executor {
 
 	L.PreloadModule("re", regexMod.Loader)
 	L.PreloadModule("url", urlMod.Loader)
+
+	L.PreloadModule("lmb", lmbMod.Loader)
+
 	return Executor{L: L}
 }
 
