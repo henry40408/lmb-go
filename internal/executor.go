@@ -2,8 +2,16 @@ package internal
 
 import (
 	"io"
+	"net/http"
 	"os"
 
+	httpMod "github.com/cjoudrey/gluahttp"
+	urlMod "github.com/cjoudrey/gluaurl"
+	logMod "github.com/cosmotek/loguago"
+	jsonMod "github.com/layeh/gopher-json"
+	"github.com/rs/zerolog"
+	cryptoMod "github.com/tengattack/gluacrypto"
+	regexMod "github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -13,6 +21,18 @@ type Executor struct {
 
 func NewExecutor() Executor {
 	L := lua.NewState()
+
+	cryptoMod.Preload(L)
+
+	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
+	L.PreloadModule("json", jsonMod.Loader)
+
+	zlogger := zerolog.New(os.Stdout).With().Logger()
+	logger := logMod.NewLogger(zlogger)
+	L.PreloadModule("logger", logger.Loader)
+
+	L.PreloadModule("re", regexMod.Loader)
+	L.PreloadModule("url", urlMod.Loader)
 	return Executor{L: L}
 }
 
