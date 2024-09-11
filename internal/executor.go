@@ -14,6 +14,7 @@ import (
 	urlMod "github.com/cjoudrey/gluaurl"
 	logMod "github.com/cosmotek/loguago"
 	"github.com/henry40408/lmb/internal/lmbMod"
+	"github.com/henry40408/lmb/internal/luaConvert"
 	jsonMod "github.com/layeh/gopher-json"
 	"github.com/rs/zerolog"
 	cryptoMod "github.com/tengattack/gluacrypto"
@@ -30,37 +31,7 @@ func NewExecutor() Executor {
 	return Executor{}
 }
 
-func fromLuaValue(lv lua.LValue) interface{} {
-	switch v := lv.(type) {
-	case *lua.LNilType:
-		return nil
-	case lua.LBool:
-		return bool(v)
-	case lua.LNumber:
-		return float64(v)
-	case lua.LString:
-		return string(v)
-	case *lua.LTable:
-		maxn := v.MaxN()
-		if maxn == 0 { // table
-			ret := make(map[string]interface{})
-			v.ForEach(func(key, value lua.LValue) {
-				ret[key.String()] = fromLuaValue(value)
-			})
-			return ret
-		} else { // array
-			ret := make([]interface{}, 0, maxn)
-			for i := 1; i <= maxn; i++ {
-				ret = append(ret, fromLuaValue(v.RawGetInt(i)))
-			}
-			return ret
-		}
-	default:
-		return v.String()
-	}
-}
-
-func (e *Executor) newState(ctx context.Context) *lua.LState {
+func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
 	L := lua.NewState()
 	L.SetContext(ctx)
 	for _, pair := range []struct {
@@ -91,7 +62,7 @@ func (e *Executor) newState(ctx context.Context) *lua.LState {
 	L.PreloadModule("re", regexMod.Loader)
 	L.PreloadModule("url", urlMod.Loader)
 
-	L.PreloadModule("lmb", lmbMod.Loader)
+	L.PreloadModule("lmb", lmbMod.NewLmbModule(state).Loader)
 	return L
 }
 
@@ -107,8 +78,8 @@ func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, e
 	return compiled, nil
 }
 
-func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto) (interface{}, error) {
-	L := e.newState(ctx)
+func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map) (interface{}, error) {
+	L := e.newState(ctx, state)
 	defer L.Close()
 
 	lf := L.NewFunctionFromProto(compiled)
@@ -120,7 +91,7 @@ func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto) (inter
 	if L.GetTop() > 0 {
 		result := L.Get(-1)
 		L.Pop(1)
-		return fromLuaValue(result), nil
+		return luaConvert.FromLuaValue(result), nil
 	}
 
 	return nil, nil
@@ -148,7 +119,7 @@ func (e *Executor) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, erro
 	return actual, nil
 }
 
-func (e *Executor) EvalFile(ctx context.Context, filePath string) (interface{}, error) {
+func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Map) (interface{}, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -159,11 +130,11 @@ func (e *Executor) EvalFile(ctx context.Context, filePath string) (interface{}, 
 	if err != nil {
 		return nil, err
 	}
-	return e.EvalScript(ctx, string(script))
+	return e.EvalScript(ctx, string(script), state)
 }
 
-func (e *Executor) EvalScript(ctx context.Context, script string) (interface{}, error) {
-	L := e.newState(ctx)
+func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Map) (interface{}, error) {
+	L := e.newState(ctx, state)
 	defer L.Close()
 
 	compiled, err := e.findOrCompile(strings.NewReader(script))
@@ -171,5 +142,5 @@ func (e *Executor) EvalScript(ctx context.Context, script string) (interface{}, 
 		return nil, err
 	}
 
-	return e.Eval(ctx, compiled)
+	return e.Eval(ctx, compiled, state)
 }

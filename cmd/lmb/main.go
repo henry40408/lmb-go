@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/henry40408/lmb/internal"
@@ -23,6 +24,8 @@ func main() {
 		Use:   "eval",
 		Short: "Evaluate a Lua script file",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var state sync.Map
+
 			e := internal.NewExecutor()
 
 			parsedTimeout, err := time.ParseDuration(timeout)
@@ -32,7 +35,7 @@ func main() {
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(parsedTimeout.Seconds()))
 			defer cancel()
-			res, err := e.EvalFile(ctx, filePath)
+			res, err := e.EvalFile(ctx, filePath, &state)
 			if err != nil {
 				return err
 			}
