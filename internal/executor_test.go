@@ -3,11 +3,27 @@ package internal
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func BenchmarkEval(b *testing.B) {
+	e := NewExecutor()
+	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
+	for i := 0; i < b.N; i++ {
+		e.Eval(context.Background(), compiled)
+	}
+}
+
+func BenchmarkEvalScript(b *testing.B) {
+	e := NewExecutor()
+	for i := 0; i < b.N; i++ {
+		e.EvalScript(context.Background(), "return 1")
+	}
+}
 
 func TestEval(t *testing.T) {
 	testCases := []struct {
@@ -25,7 +41,7 @@ func TestEval(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			e := NewExecutor()
-			res, err := e.Eval(context.Background(), tc.script)
+			res, err := e.EvalScript(context.Background(), tc.script)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
 		})
@@ -36,7 +52,7 @@ func TestEvalWithTimeout(t *testing.T) {
 	e := NewExecutor()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err := e.Eval(ctx, "while true do; end")
+	_, err := e.EvalScript(ctx, "while true do; end")
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 

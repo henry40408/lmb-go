@@ -3,6 +3,7 @@ module github.com/henry40408/lmb
 go 1.22.5
 
 require (
+	github.com/cespare/xxhash v1.1.0
 	github.com/cjoudrey/gluahttp v0.0.0-20201111170219-25003d9adfa9
 	github.com/cosmotek/loguago v1.0.0
 	github.com/layeh/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
