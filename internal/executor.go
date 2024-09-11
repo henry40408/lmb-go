@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -17,31 +18,10 @@ import (
 )
 
 type Executor struct {
-	L *lua.LState
 }
 
 func NewExecutor() Executor {
-	L := lua.NewState()
-
-	cryptoMod.Preload(L)
-
-	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
-	L.PreloadModule("json", jsonMod.Loader)
-
-	zlogger := zerolog.New(os.Stdout).With().Logger()
-	logger := logMod.NewLogger(zlogger)
-	L.PreloadModule("logger", logger.Loader)
-
-	L.PreloadModule("re", regexMod.Loader)
-	L.PreloadModule("url", urlMod.Loader)
-
-	L.PreloadModule("lmb", lmbMod.Loader)
-
-	return Executor{L: L}
-}
-
-func (e *Executor) Close() {
-	e.L.Close()
+	return Executor{}
 }
 
 func fromLuaValue(lv lua.LValue) interface{} {
@@ -74,21 +54,59 @@ func fromLuaValue(lv lua.LValue) interface{} {
 	}
 }
 
-func (e *Executor) Eval(script string) (interface{}, error) {
-	if err := e.L.DoString(script); err != nil {
+func (e *Executor) newState(ctx context.Context) *lua.LState {
+	L := lua.NewState()
+	L.SetContext(ctx)
+	for _, pair := range []struct {
+		n string
+		f lua.LGFunction
+	}{
+		{lua.LoadLibName, lua.OpenPackage},
+		{lua.BaseLibName, lua.OpenBase},
+	} {
+		if err := L.CallByParam(lua.P{
+			Fn:      L.NewFunction(pair.f),
+			NRet:    0,
+			Protect: true,
+		}, lua.LString(pair.n)); err != nil {
+			panic(err)
+		}
+	}
+
+	cryptoMod.Preload(L)
+
+	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
+	L.PreloadModule("json", jsonMod.Loader)
+
+	zlogger := zerolog.New(os.Stdout).With().Logger()
+	logger := logMod.NewLogger(zlogger)
+	L.PreloadModule("logger", logger.Loader)
+
+	L.PreloadModule("re", regexMod.Loader)
+	L.PreloadModule("url", urlMod.Loader)
+
+	L.PreloadModule("lmb", lmbMod.Loader)
+	return L
+}
+
+func (e *Executor) Eval(ctx context.Context, script string) (interface{}, error) {
+	L := e.newState(ctx)
+	defer L.Close()
+
+	if err := L.DoString(script); err != nil {
 		return nil, err
 	}
 
-	if e.L.GetTop() > 0 {
-		result := e.L.Get(-1)
-		e.L.Pop(1)
+	if L.GetTop() > 0 {
+		result := L.Get(-1)
+		L.Pop(1)
 		return fromLuaValue(result), nil
 	}
 
 	return nil, nil
 }
 
-func (e *Executor) EvalFile(filePath string) (interface{}, error) {
+func (e *Executor) EvalFile(ctx context.Context, filePath string) (interface{}, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -99,5 +117,5 @@ func (e *Executor) EvalFile(filePath string) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return e.Eval(string(script))
+	return e.Eval(ctx, string(script))
 }

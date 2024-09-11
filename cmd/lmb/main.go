@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/henry40408/lmb/internal"
 	"github.com/spf13/cobra"
@@ -13,6 +15,7 @@ var version string
 
 func main() {
 	var filePath string
+	var timeout string
 
 	rootCmd := &cobra.Command{Version: version}
 
@@ -22,7 +25,14 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			e := internal.NewExecutor()
 
-			res, err := e.EvalFile(filePath)
+			parsedTimeout, err := time.ParseDuration(timeout)
+			if err != nil {
+				return err
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(parsedTimeout.Seconds()))
+			defer cancel()
+			res, err := e.EvalFile(ctx, filePath)
 			if err != nil {
 				return err
 			}
@@ -36,9 +46,10 @@ func main() {
 			return nil
 		},
 	}
-	evalCmd.Flags().StringVar(&filePath, "file", "", "script file")
+	evalCmd.Flags().StringVar(&filePath, "file", "", "script path")
 	evalCmd.MarkFlagRequired("file")
 
+	rootCmd.Flags().StringVar(&timeout, "timeout", "30s", "timeout in duration format e.g. 30s, 1m30s, 90s")
 	rootCmd.AddCommand(evalCmd)
 
 	if err := rootCmd.Execute(); err != nil {
