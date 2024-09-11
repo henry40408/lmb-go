@@ -8,6 +8,9 @@ import (
 )
 
 type lmbModule struct {
+	// state is scoped to a single evaluation cycle. Different evaluations should not
+	// share state. If data sharing across evaluations is required, use the store instead.
+	// Example use case for state: HTTP request context
 	state *sync.Map
 }
 
