@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"net/http"
 	"os"
@@ -25,10 +26,14 @@ import (
 
 type Executor struct {
 	compiled sync.Map
+	store    *sql.DB
 }
 
-func NewExecutor() Executor {
-	return Executor{}
+func NewExecutor(store *sql.DB) Executor {
+	return Executor{
+		compiled: sync.Map{},
+		store:    store,
+	}
 }
 
 func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {

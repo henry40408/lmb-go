@@ -7,6 +7,7 @@ require (
 	github.com/cjoudrey/gluahttp v0.0.0-20201111170219-25003d9adfa9
 	github.com/cosmotek/loguago v1.0.0
 	github.com/layeh/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
+	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tengattack/gluacrypto v0.0.0-20240324200146-54b58c95c255

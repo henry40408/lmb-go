@@ -26,7 +26,11 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var state sync.Map
 
-			e := internal.NewExecutor()
+			db, err := internal.OpenDB(":memory:")
+			if err != nil {
+				return err
+			}
+			e := internal.NewExecutor(db)
 
 			parsedTimeout, err := time.ParseDuration(timeout)
 			if err != nil {
