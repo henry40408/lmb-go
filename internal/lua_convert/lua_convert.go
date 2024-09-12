@@ -1,4 +1,4 @@
-package luaConvert
+package lua_convert
 
 import (
 	"reflect"

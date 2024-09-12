@@ -14,8 +14,8 @@ import (
 	httpMod "github.com/cjoudrey/gluahttp"
 	urlMod "github.com/cjoudrey/gluaurl"
 	logMod "github.com/cosmotek/loguago"
-	"github.com/henry40408/lmb/internal/lmbMod"
-	"github.com/henry40408/lmb/internal/luaConvert"
+	"github.com/henry40408/lmb/internal/lmb_mod"
+	"github.com/henry40408/lmb/internal/lua_convert"
 	jsonMod "github.com/layeh/gopher-json"
 	"github.com/rs/zerolog"
 	cryptoMod "github.com/tengattack/gluacrypto"
@@ -67,7 +67,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
 	L.PreloadModule("re", regexMod.Loader)
 	L.PreloadModule("url", urlMod.Loader)
 
-	L.PreloadModule("lmb", lmbMod.NewLmbModule(state).Loader)
+	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state).Loader)
 	return L
 }
 
@@ -96,7 +96,7 @@ func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state 
 	if L.GetTop() > 0 {
 		result := L.Get(-1)
 		L.Pop(1)
-		return luaConvert.FromLuaValue(result), nil
+		return lua_convert.FromLuaValue(result), nil
 	}
 
 	return nil, nil

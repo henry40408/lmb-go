@@ -1,9 +1,9 @@
-package lmbMod
+package lmb_mod
 
 import (
 	"sync"
 
-	"github.com/henry40408/lmb/internal/luaConvert"
+	"github.com/henry40408/lmb/internal/lua_convert"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -41,13 +41,13 @@ func (m *lmbModule) get(L *lua.LState) int {
 		L.Push(lua.LNil)
 		return 1
 	}
-	L.Push(luaConvert.ToLuaValue(L, raw))
+	L.Push(lua_convert.ToLuaValue(L, raw))
 	return 1
 }
 
 func (m *lmbModule) set(L *lua.LState) int {
 	key := L.ToString(2)
 	value := L.Get(3)
-	m.state.Store(key, luaConvert.FromLuaValue(value))
+	m.state.Store(key, lua_convert.FromLuaValue(value))
 	return 0
 }
