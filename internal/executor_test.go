@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -100,7 +101,10 @@ func TestState(t *testing.T) {
 }
 
 func setupExecutor() Executor {
-	db, _ := OpenDB(":memory:")
+	db, err := OpenDB(":memory:")
+	if err != nil {
+		log.Fatal(err)
+	}
 	return NewExecutor(db)
 }
 
