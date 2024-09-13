@@ -38,12 +38,12 @@ func NewExecutor(store *sql.DB) Executor {
 	}
 }
 
-func NewTestExecutor() Executor {
+func NewTestExecutor() (Executor, *sql.DB) {
 	db, err := database.OpenDB(":memory:")
 	if err != nil {
 		log.Fatal(err)
 	}
-	return NewExecutor(db)
+	return NewExecutor(db), db
 }
 
 func (e *Executor) newState(ctx context.Context, state *sync.Map, store *sql.DB) *lua.LState {

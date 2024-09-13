@@ -3,7 +3,6 @@ package executor
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -12,17 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/henry40408/lmb/internal/database"
 	"github.com/stretchr/testify/assert"
 )
 
 func BenchmarkEval(b *testing.B) {
 	var state sync.Map
-	e := NewTestExecutor()
-	db, err := database.OpenDB(":memory:")
-	if err != nil {
-		log.Fatal(err)
-	}
+	e, db := NewTestExecutor()
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for i := 0; i < b.N; i++ {
 		e.Eval(context.Background(), compiled, &state, db)
@@ -31,11 +25,7 @@ func BenchmarkEval(b *testing.B) {
 
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
-	e := NewTestExecutor()
-	db, err := database.OpenDB(":memory:")
-	if err != err {
-		log.Fatal(err)
-	}
+	e, db := NewTestExecutor()
 	for i := 0; i < b.N; i++ {
 		e.EvalScript(context.Background(), "return 1", &state, db)
 	}
@@ -43,8 +33,6 @@ func BenchmarkEvalScript(b *testing.B) {
 
 func TestEval(t *testing.T) {
 	var state sync.Map
-	db, err := database.OpenDB(":memory:")
-	assert.NoError(t, err)
 	testCases := []struct {
 		name     string
 		script   string
@@ -59,7 +47,7 @@ func TestEval(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			e := NewTestExecutor()
+			e, db := NewTestExecutor()
 			res, err := e.EvalScript(context.Background(), tc.script, &state, db)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
@@ -69,20 +57,15 @@ func TestEval(t *testing.T) {
 
 func TestEvalWithTimeout(t *testing.T) {
 	var state sync.Map
-	db, err := database.OpenDB(":memory:")
-	assert.NoError(t, err)
-	e := NewTestExecutor()
+	e, db := NewTestExecutor()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err = e.EvalScript(ctx, "while true do; end", &state, db)
+	_, err := e.EvalScript(ctx, "while true do; end", &state, db)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
 func TestEvalFile(t *testing.T) {
 	var state sync.Map
-
-	db, err := database.OpenDB(":memory:")
-	assert.NoError(t, err)
 
 	listener, _ := net.Listen("tcp", "127.0.0.1:0")
 	setupServer(listener)
@@ -91,7 +74,7 @@ func TestEvalFile(t *testing.T) {
 	matches, err := filepath.Glob("../lua-examples/*.lua")
 	assert.NoError(t, err)
 	for _, path := range matches {
-		e := NewTestExecutor()
+		e, db := NewTestExecutor()
 		_, err := e.EvalFile(context.Background(), path, &state, db)
 		assert.NoError(t, err, path)
 	}
@@ -101,10 +84,7 @@ func TestState(t *testing.T) {
 	var state sync.Map
 	state.Store("a", 1.0)
 
-	db, err := database.OpenDB(":memory:")
-	assert.NoError(t, err)
-
-	e := NewTestExecutor()
+	e, db := NewTestExecutor()
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.state['b'] = m.state['a'] + 1
@@ -121,9 +101,7 @@ func TestState(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	var state sync.Map
-	db, err := database.OpenDB(":memory:")
-	assert.NoError(t, err)
-	e := NewTestExecutor()
+	e, db := NewTestExecutor()
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.store['a'] = 47
@@ -133,6 +111,27 @@ func TestStore(t *testing.T) {
   `, &state, db)
 	assert.NoError(t, err)
 	assert.Equal(t, true, res)
+}
+
+func TestStoreUpdate(t *testing.T) {
+	var state sync.Map
+	e, db := NewTestExecutor()
+	res, err := e.EvalScript(context.Background(), `
+  local m = require('lmb')
+  m.store['alice'] = 50
+  m.store['bob'] = 50
+  m.store:update(function(store)
+    local alice = store['alice']
+    if alice < 100 then
+      error('insufficient fund')
+    end
+    store['alice'] = store['alice'] - 100
+    store['bob'] = store['bob'] + 100
+  end)
+  return true
+  `, &state, db)
+	assert.Error(t, err, "insufficient fund")
+	assert.Nil(t, res)
 }
 
 func setupServer(listener net.Listener) {
