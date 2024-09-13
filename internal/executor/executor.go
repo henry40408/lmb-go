@@ -1,9 +1,10 @@
-package internal
+package executor
 
 import (
 	"context"
 	"database/sql"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	httpMod "github.com/cjoudrey/gluahttp"
 	urlMod "github.com/cjoudrey/gluaurl"
 	logMod "github.com/cosmotek/loguago"
+	"github.com/henry40408/lmb/internal/database"
 	"github.com/henry40408/lmb/internal/lmb_mod"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	jsonMod "github.com/layeh/gopher-json"
@@ -36,7 +38,15 @@ func NewExecutor(store *sql.DB) Executor {
 	}
 }
 
-func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
+func NewTestExecutor() Executor {
+	db, err := database.OpenDB(":memory:")
+	if err != nil {
+		log.Fatal(err)
+	}
+	return NewExecutor(db)
+}
+
+func (e *Executor) newState(ctx context.Context, state *sync.Map, store *sql.DB) *lua.LState {
 	L := lua.NewState()
 	L.SetContext(ctx)
 	for _, pair := range []struct {
@@ -67,7 +77,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
 	L.PreloadModule("re", regexMod.Loader)
 	L.PreloadModule("url", urlMod.Loader)
 
-	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state).Loader)
+	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state, store).Loader)
 	return L
 }
 
@@ -83,8 +93,8 @@ func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, e
 	return compiled, nil
 }
 
-func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map) (interface{}, error) {
-	L := e.newState(ctx, state)
+func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map, store *sql.DB) (interface{}, error) {
+	L := e.newState(ctx, state, store)
 	defer L.Close()
 
 	lf := L.NewFunctionFromProto(compiled)
@@ -124,7 +134,7 @@ func (e *Executor) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, erro
 	return actual, nil
 }
 
-func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Map) (interface{}, error) {
+func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Map, store *sql.DB) (interface{}, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, err
@@ -135,11 +145,11 @@ func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Ma
 	if err != nil {
 		return nil, err
 	}
-	return e.EvalScript(ctx, string(script), state)
+	return e.EvalScript(ctx, string(script), state, store)
 }
 
-func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Map) (interface{}, error) {
-	L := e.newState(ctx, state)
+func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Map, store *sql.DB) (interface{}, error) {
+	L := e.newState(ctx, state, store)
 	defer L.Close()
 
 	compiled, err := e.findOrCompile(strings.NewReader(script))
@@ -147,5 +157,5 @@ func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Ma
 		return nil, err
 	}
 
-	return e.Eval(ctx, compiled, state)
+	return e.Eval(ctx, compiled, state, store)
 }

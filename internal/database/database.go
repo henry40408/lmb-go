@@ -1,4 +1,4 @@
-package internal
+package database
 
 import (
 	"database/sql"
@@ -14,7 +14,7 @@ func migrateDB(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance("file://../migrations", "sqlite3", driver)
+	m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
 	if err != nil {
 		return err
 	}

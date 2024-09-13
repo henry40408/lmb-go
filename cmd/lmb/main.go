@@ -8,7 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/henry40408/lmb/internal"
+	"github.com/henry40408/lmb/internal/database"
+	"github.com/henry40408/lmb/internal/executor"
 	"github.com/spf13/cobra"
 )
 
@@ -26,11 +27,12 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var state sync.Map
 
-			db, err := internal.OpenDB(":memory:")
+			// TODO open database from file system
+			db, err := database.OpenDB(":memory:")
 			if err != nil {
 				return err
 			}
-			e := internal.NewExecutor(db)
+			e := executor.NewExecutor(db)
 
 			parsedTimeout, err := time.ParseDuration(timeout)
 			if err != nil {
@@ -39,7 +41,7 @@ func main() {
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(parsedTimeout.Seconds()))
 			defer cancel()
-			res, err := e.EvalFile(ctx, filePath, &state)
+			res, err := e.EvalFile(ctx, filePath, &state, db)
 			if err != nil {
 				return err
 			}
