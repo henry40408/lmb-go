@@ -21,12 +21,40 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func BenchmarkEval(b *testing.B) {
+func BenchmarkCompile(b *testing.B) {
+	e, _ := NewTestExecutor()
+	for i := 0; i < b.N; i++ {
+		e.Compile(strings.NewReader("return 1"), "a")
+	}
+}
+
+func BenchmarkEvalCompiled(b *testing.B) {
 	var state sync.Map
 	e, store := NewTestExecutor()
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for i := 0; i < b.N; i++ {
-		e.Eval(context.Background(), compiled, &state, store)
+		_, err := e.Eval(context.Background(), compiled, &state, store)
+		if err != nil {
+			b.Error(err)
+		}
+	}
+}
+
+func BenchmarkEvalConcurrency(b *testing.B) {
+	var state sync.Map
+	e, store := NewTestExecutor()
+	compiled, _ := e.Compile(strings.NewReader(`
+  local m = require('lmb')
+  m.store:update(function(store)
+    store['counter'] = (store['counter'] or 0) + 1
+  end)
+  return true
+  `), "concurrency")
+	for i := 0; i < b.N; i++ {
+		_, err := e.Eval(context.Background(), compiled, &state, store)
+		if err != nil {
+			b.Error(err)
+		}
 	}
 }
 
@@ -174,6 +202,40 @@ func TestStoreUpdate(t *testing.T) {
 	bob, err = store.Get("bob")
 	assert.NoError(t, err)
 	assert.Equal(t, float64(100), bob)
+}
+
+func TestStoreUpdateConcurrency(t *testing.T) {
+	var state sync.Map
+	e, store := NewTestExecutor()
+
+	reader := strings.NewReader(`
+  local m = require('lmb')
+  m.store:update(function(store)
+    store['counter'] = (store['counter'] or 0) + 1
+  end)
+  return true
+  `)
+	compiled, err := e.Compile(reader, "concurrency")
+	assert.NoError(t, err)
+
+	var wg sync.WaitGroup
+
+	count := 100
+	wg.Add(count)
+	for i := 0; i < count; i++ {
+		go func(i int) {
+			defer wg.Done()
+			res, err := e.Eval(context.Background(), compiled, &state, store)
+			assert.NoError(t, err)
+			assert.Equal(t, true, res)
+		}(i)
+	}
+
+	wg.Wait()
+
+	value, err := store.Get("counter")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(count), value)
 }
 
 func setupServer(listener net.Listener) {
