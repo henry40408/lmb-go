@@ -30,7 +30,7 @@ end
 
 local total = 0
 for b, count in pairs(subtotal) do
-	print(b, ":", count)
+	print(string.format("%3s: %d", b, count))
 	total = total + count
 end
 
