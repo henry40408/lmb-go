@@ -22,18 +22,18 @@ func TestMain(m *testing.M) {
 
 func BenchmarkEval(b *testing.B) {
 	var state sync.Map
-	e, db := NewTestExecutor()
+	e, store := NewTestExecutor()
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for i := 0; i < b.N; i++ {
-		e.Eval(context.Background(), compiled, &state, db)
+		e.Eval(context.Background(), compiled, &state, store)
 	}
 }
 
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
-	e, db := NewTestExecutor()
+	e, store := NewTestExecutor()
 	for i := 0; i < b.N; i++ {
-		e.EvalScript(context.Background(), "return 1", &state, db)
+		e.EvalScript(context.Background(), "return 1", &state, store)
 	}
 }
 
@@ -53,8 +53,8 @@ func TestEval(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			e, db := NewTestExecutor()
-			res, err := e.EvalScript(context.Background(), tc.script, &state, db)
+			e, store := NewTestExecutor()
+			res, err := e.EvalScript(context.Background(), tc.script, &state, store)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
 		})
@@ -63,10 +63,10 @@ func TestEval(t *testing.T) {
 
 func TestEvalWithTimeout(t *testing.T) {
 	var state sync.Map
-	e, db := NewTestExecutor()
+	e, store := NewTestExecutor()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err := e.EvalScript(ctx, "while true do; end", &state, db)
+	_, err := e.EvalScript(ctx, "while true do; end", &state, store)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
@@ -80,8 +80,8 @@ func TestEvalFile(t *testing.T) {
 	matches, err := filepath.Glob("../lua-examples/*.lua")
 	assert.NoError(t, err)
 	for _, path := range matches {
-		e, db := NewTestExecutor()
-		_, err := e.EvalFile(context.Background(), path, &state, db)
+		e, store := NewTestExecutor()
+		_, err := e.EvalFile(context.Background(), path, &state, store)
 		assert.NoError(t, err, path)
 	}
 }
@@ -90,12 +90,12 @@ func TestState(t *testing.T) {
 	var state sync.Map
 	state.Store("a", 1.0)
 
-	e, db := NewTestExecutor()
+	e, store := NewTestExecutor()
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.state['b'] = m.state['a'] + 1
   return true
-  `, &state, db)
+  `, &state, store)
 	assert.NoError(t, err)
 	assert.Equal(t, true, res)
 
@@ -107,22 +107,23 @@ func TestState(t *testing.T) {
 
 func TestStore(t *testing.T) {
 	var state sync.Map
-	e, db := NewTestExecutor()
+	e, store := NewTestExecutor()
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.store['a'] = 47
   assert(m.store['a'] == 47)
   assert(not m.store['b'])
   return true
-  `, &state, db)
+  `, &state, store)
 	assert.NoError(t, err)
 	assert.Equal(t, true, res)
 }
 
 func TestStoreUpdate(t *testing.T) {
 	var state sync.Map
-	e, db := NewTestExecutor()
-	res, err := e.EvalScript(context.Background(), `
+	e, store := NewTestExecutor()
+
+	failed, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.store['alice'] = 50
   m.store['bob'] = 50
@@ -135,9 +136,40 @@ func TestStoreUpdate(t *testing.T) {
     store['bob'] = store['bob'] + 100
   end)
   return true
-  `, &state, db)
+  `, &state, store)
 	assert.Error(t, err, "insufficient fund")
-	assert.Nil(t, res)
+	assert.Nil(t, failed)
+
+	alice, err := store.Get("alice")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(50), alice)
+	bob, err := store.Get("bob")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(50), bob)
+
+	success, err := e.EvalScript(context.Background(), `
+  local m = require('lmb')
+  m.store['alice'] = 100
+  m.store['bob'] = 0
+  m.store:update(function(store)
+    local alice = store['alice']
+    if alice < 100 then
+      error('insufficient fund')
+    end
+    store['alice'] = store['alice'] - 100
+    store['bob'] = store['bob'] + 100
+  end)
+  return true
+  `, &state, store)
+	assert.NoError(t, err)
+	assert.Equal(t, true, success)
+
+	alice, err = store.Get("alice")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(0), alice)
+	bob, err = store.Get("bob")
+	assert.NoError(t, err)
+	assert.Equal(t, float64(100), bob)
 }
 
 func setupServer(listener net.Listener) {

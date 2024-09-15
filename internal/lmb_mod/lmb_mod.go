@@ -2,13 +2,11 @@ package lmb_mod
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/gob"
-	"reflect"
 	"sync"
-	"unsafe"
 
 	"github.com/henry40408/lmb/internal/lua_convert"
+	"github.com/henry40408/lmb/internal/store"
 	lua "github.com/yuin/gopher-lua"
 )
 
@@ -17,10 +15,10 @@ type lmbModule struct {
 	// share state. If data sharing across evaluations is required, use the store instead.
 	// Example use case for state: HTTP request context
 	state *sync.Map
-	store *sql.DB
+	store *store.Store
 }
 
-func NewLmbModule(state *sync.Map, store *sql.DB) *lmbModule {
+func NewLmbModule(state *sync.Map, store *store.Store) *lmbModule {
 	return &lmbModule{state, store}
 }
 
@@ -80,26 +78,12 @@ func deserializeData(value []byte, target interface{}) error {
 
 func (m *lmbModule) storeGet(L *lua.LState) int {
 	name := L.CheckString(2)
-	stmt, err := m.store.Prepare(`SELECT value FROM store WHERE name = ?`)
+	data, err := m.store.Get(name)
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
-	var value []byte
-	err = stmt.QueryRow(&name).Scan(&value)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			L.Push(lua.LNil)
-			return 1
-		} else {
-			L.RaiseError(err.Error())
-		}
-	}
-	var deserialized interface{}
-	err = deserializeData(value, &deserialized)
-	if err != nil {
-		L.RaiseError(err.Error())
-	}
-	L.Push(lua_convert.ToLuaValue(L, deserialized))
+	value := lua_convert.ToLuaValue(L, data)
+	L.Push(value)
 	return 1
 }
 
@@ -107,12 +91,7 @@ func (m *lmbModule) storePut(L *lua.LState) int {
 	name := L.CheckString(2)
 	value := L.Get(3)
 	data := lua_convert.FromLuaValue(value)
-	stmt, err := m.store.Prepare(`INSERT INTO store (name, value, type_hint, size) VALUES (?, ?, ?, ?)`)
-	if err != nil {
-		L.RaiseError(err.Error())
-	}
-	serialized := serializeData(&data)
-	_, err = stmt.Exec(&name, serialized, reflect.TypeOf(data).Name(), int64(unsafe.Sizeof(data)))
+	err := m.store.Put(name, data)
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
@@ -122,48 +101,28 @@ func (m *lmbModule) storePut(L *lua.LState) int {
 func (m *lmbModule) storeUpdate(L *lua.LState) int {
 	f := L.CheckFunction(2)
 
-	tx, err := m.store.Begin()
+	st, err := m.store.Begin()
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
-	defer tx.Rollback()
+	defer st.Rollback()
 
 	t := L.NewTable()
 	mt := L.NewTable()
 	L.SetField(mt, "__index", L.NewFunction(func(l *lua.LState) int {
 		name := L.CheckString(2)
-		stmt, err := tx.Prepare(`SELECT value FROM store WHERE name = ?`)
+		value, err := st.Get(name)
 		if err != nil {
 			L.RaiseError(err.Error())
 		}
-		var value []byte
-		err = stmt.QueryRow(&name).Scan(&value)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				L.Push(lua.LNil)
-				return 1
-			} else {
-				L.RaiseError(err.Error())
-			}
-		}
-		var deserialized interface{}
-		err = deserializeData(value, &deserialized)
-		if err != nil {
-			L.RaiseError(err.Error())
-		}
-		L.Push(lua_convert.ToLuaValue(L, deserialized))
+		L.Push(lua_convert.ToLuaValue(L, value))
 		return 1
 	}))
 	L.SetField(mt, "__newindex", L.NewFunction(func(l *lua.LState) int {
 		name := L.CheckString(2)
 		value := L.Get(3)
 		data := lua_convert.FromLuaValue(value)
-		stmt, err := tx.Prepare(`INSERT INTO store (name, value, type_hint, size) VALUES (?, ?, ?, ?)`)
-		if err != nil {
-			L.RaiseError(err.Error())
-		}
-		serialized := serializeData(&data)
-		_, err = stmt.Exec(&name, serialized, reflect.TypeOf(data).Name(), int64(unsafe.Sizeof(data)))
+		err := st.Put(name, data)
 		if err != nil {
 			L.RaiseError(err.Error())
 		}
@@ -178,7 +137,7 @@ func (m *lmbModule) storeUpdate(L *lua.LState) int {
 		L.RaiseError(err.Error())
 	}
 
-	err = tx.Commit()
+	err = st.Commit()
 	if err != nil {
 		L.RaiseError(err.Error())
 	}

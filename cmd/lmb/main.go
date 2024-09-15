@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/henry40408/lmb"
-	"github.com/henry40408/lmb/internal/database"
 	"github.com/henry40408/lmb/internal/executor"
+	"github.com/henry40408/lmb/internal/store"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -39,11 +39,11 @@ func main() {
 			var state sync.Map
 
 			// TODO open database from file system
-			db, err := database.OpenDB(":memory:")
+			store, err := store.NewStore(":memory:")
 			if err != nil {
 				return err
 			}
-			e := executor.NewExecutor(db)
+			e := executor.NewExecutor(&store)
 
 			parsedTimeout, err := time.ParseDuration(timeout)
 			if err != nil {
@@ -57,7 +57,7 @@ func main() {
 			evalLogger := log.With().Str("file_path", filePath).Logger()
 			start := time.Now()
 
-			res, err := e.EvalFile(ctx, filePath, &state, db)
+			res, err := e.EvalFile(ctx, filePath, &state, &store)
 
 			duration := time.Since(start)
 			evalLogger.Debug().Dur("duration", duration).Msg("file evaluated")
