@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func BenchmarkCompile(b *testing.B) {
-	e, _ := NewTestExecutor()
+	e, _ := NewTestExecutor(strings.NewReader(""))
 	for i := 0; i < b.N; i++ {
 		e.Compile(strings.NewReader("return 1"), "a")
 	}
@@ -30,10 +30,10 @@ func BenchmarkCompile(b *testing.B) {
 
 func BenchmarkEvalCompiled(b *testing.B) {
 	var state sync.Map
-	e, store := NewTestExecutor()
+	e, _ := NewTestExecutor(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for i := 0; i < b.N; i++ {
-		_, err := e.Eval(context.Background(), compiled, &state, store)
+		_, err := e.Eval(context.Background(), compiled, &state)
 		if err != nil {
 			b.Error(err)
 		}
@@ -42,7 +42,7 @@ func BenchmarkEvalCompiled(b *testing.B) {
 
 func BenchmarkEvalConcurrency(b *testing.B) {
 	var state sync.Map
-	e, store := NewTestExecutor()
+	e, _ := NewTestExecutor(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader(`
   local m = require('lmb')
   m.store:update(function(store)
@@ -51,7 +51,7 @@ func BenchmarkEvalConcurrency(b *testing.B) {
   return true
   `), "concurrency")
 	for i := 0; i < b.N; i++ {
-		_, err := e.Eval(context.Background(), compiled, &state, store)
+		_, err := e.Eval(context.Background(), compiled, &state)
 		if err != nil {
 			b.Error(err)
 		}
@@ -60,9 +60,9 @@ func BenchmarkEvalConcurrency(b *testing.B) {
 
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
-	e, store := NewTestExecutor()
+	e, _ := NewTestExecutor(strings.NewReader(""))
 	for i := 0; i < b.N; i++ {
-		e.EvalScript(context.Background(), "return 1", &state, store)
+		e.EvalScript(context.Background(), "return 1", &state)
 	}
 }
 
@@ -77,13 +77,13 @@ func TestEval(t *testing.T) {
 		{"bool", "return true", bool(true)},
 		{"number", "return 1", float64(1)},
 		{"string", "return 'hello'", string("hello")},
-		{"list", "return {1, 2}", []interface{}{float64(1), float64(2)}},
-		{"table", "return {a = 1, b = 2}", map[string]interface{}{"a": float64(1), "b": float64(2)}},
+		{"list", "return {1, 2}", []interface{}{1.0, 2.0}},
+		{"table", "return {a = 1, b = 2}", map[string]interface{}{"a": 1.0, "b": 2.0}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			e, store := NewTestExecutor()
-			res, err := e.EvalScript(context.Background(), tc.script, &state, store)
+			e, _ := NewTestExecutor(strings.NewReader(""))
+			res, err := e.EvalScript(context.Background(), tc.script, &state)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
 		})
@@ -92,10 +92,10 @@ func TestEval(t *testing.T) {
 
 func TestEvalWithTimeout(t *testing.T) {
 	var state sync.Map
-	e, store := NewTestExecutor()
+	e, _ := NewTestExecutor(strings.NewReader(""))
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err := e.EvalScript(ctx, "while true do; end", &state, store)
+	_, err := e.EvalScript(ctx, "while true do; end", &state)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
@@ -109,133 +109,13 @@ func TestEvalReader(t *testing.T) {
 	matches, err := filepath.Glob("../lua-examples/*.lua")
 	assert.NoError(t, err)
 	for _, path := range matches {
-		e, store := NewTestExecutor()
+		e, _ := NewTestExecutor(strings.NewReader(""))
 		file, err := os.Open(path)
 		assert.NoError(t, err)
 		defer file.Close()
-		_, err = e.EvalReader(context.Background(), file, &state, store)
+		_, err = e.EvalReader(context.Background(), file, &state)
 		assert.NoError(t, err, path)
 	}
-}
-
-func TestState(t *testing.T) {
-	var state sync.Map
-	state.Store("a", 1.0)
-
-	e, store := NewTestExecutor()
-	res, err := e.EvalScript(context.Background(), `
-  local m = require('lmb')
-  m.state['b'] = m.state['a'] + 1
-  return true
-  `, &state, store)
-	assert.NoError(t, err)
-	assert.Equal(t, true, res)
-
-	a, _ := state.Load("a")
-	b, _ := state.Load("b")
-	assert.Equal(t, 1.0, a)
-	assert.Equal(t, 2.0, b)
-}
-
-func TestStore(t *testing.T) {
-	var state sync.Map
-	e, store := NewTestExecutor()
-	res, err := e.EvalScript(context.Background(), `
-  local m = require('lmb')
-  m.store['a'] = 47
-  assert(m.store['a'] == 47)
-  assert(not m.store['b'])
-  return true
-  `, &state, store)
-	assert.NoError(t, err)
-	assert.Equal(t, true, res)
-}
-
-func TestStoreUpdate(t *testing.T) {
-	var state sync.Map
-	e, store := NewTestExecutor()
-
-	failed, err := e.EvalScript(context.Background(), `
-  local m = require('lmb')
-  m.store['alice'] = 50
-  m.store['bob'] = 50
-  m.store:update(function(store)
-    local alice = store['alice']
-    if alice < 100 then
-      error('insufficient fund')
-    end
-    store['alice'] = store['alice'] - 100
-    store['bob'] = store['bob'] + 100
-  end)
-  return true
-  `, &state, store)
-	assert.Error(t, err, "insufficient fund")
-	assert.Nil(t, failed)
-
-	alice, err := store.Get("alice")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(50), alice)
-	bob, err := store.Get("bob")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(50), bob)
-
-	success, err := e.EvalScript(context.Background(), `
-  local m = require('lmb')
-  m.store['alice'] = 100
-  m.store['bob'] = 0
-  m.store:update(function(store)
-    local alice = store['alice']
-    if alice < 100 then
-      error('insufficient fund')
-    end
-    store['alice'] = store['alice'] - 100
-    store['bob'] = store['bob'] + 100
-  end)
-  return true
-  `, &state, store)
-	assert.NoError(t, err)
-	assert.Equal(t, true, success)
-
-	alice, err = store.Get("alice")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(0), alice)
-	bob, err = store.Get("bob")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(100), bob)
-}
-
-func TestStoreUpdateConcurrency(t *testing.T) {
-	var state sync.Map
-	e, store := NewTestExecutor()
-
-	reader := strings.NewReader(`
-  local m = require('lmb')
-  m.store:update(function(store)
-    store['counter'] = (store['counter'] or 0) + 1
-  end)
-  return true
-  `)
-	compiled, err := e.Compile(reader, "concurrency")
-	assert.NoError(t, err)
-
-	var wg sync.WaitGroup
-
-	count := 100
-	wg.Add(count)
-	for i := 0; i < count; i++ {
-		go func(i int) {
-			defer wg.Done()
-			res, err := e.Eval(context.Background(), compiled, &state, store)
-			assert.NoError(t, err)
-			assert.Equal(t, true, res)
-		}(i)
-	}
-
-	wg.Wait()
-
-	value, err := store.Get("counter")
-	assert.NoError(t, err)
-	assert.Equal(t, float64(count), value)
 }
 
 func setupServer(listener net.Listener) {

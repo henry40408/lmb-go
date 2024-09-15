@@ -41,7 +41,12 @@ func ToLuaValue(L *lua.LState, value interface{}) lua.LValue {
 	switch v.Kind() {
 	case reflect.Bool:
 		return lua.LBool(v.Bool())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int64:
+		return lua.LNumber(v.Int())
+	case reflect.Int32:
+		if v.Type() == reflect.TypeOf(rune(0)) {
+			return lua.LString(string(rune(v.Int())))
+		}
 		return lua.LNumber(v.Int())
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return lua.LNumber(v.Uint())

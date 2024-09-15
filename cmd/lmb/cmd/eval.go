@@ -33,7 +33,7 @@ var (
 				return err
 			}
 			defer store.Close()
-			e := executor.NewExecutor(&store)
+			e := executor.NewExecutor(&store, os.Stdin)
 
 			parsedTimeout, err := time.ParseDuration(timeout)
 			if err != nil {
@@ -63,7 +63,7 @@ var (
 			if err != nil {
 				return err
 			}
-			res, err := e.Eval(ctx, compiled, &state, &store)
+			res, err := e.Eval(ctx, compiled, &state)
 
 			duration := time.Since(start)
 			evalLogger.Debug().Str("duration", duration.String()).Msg("file evaluated")
