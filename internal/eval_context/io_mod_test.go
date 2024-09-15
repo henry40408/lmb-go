@@ -1,4 +1,4 @@
-package executor
+package eval_context
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 
 func BenchmarkRead(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	compiled, err := e.Compile(strings.NewReader(`
   local io = require('io')
   return io.read('*a')
@@ -48,7 +48,7 @@ func TestRead(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e, _ := NewTestExecutor(strings.NewReader(tc.input))
+			e, _ := NewTestEvalContext(strings.NewReader(tc.input))
 			res, err := e.EvalScript(context.Background(), fmt.Sprintf(`
       local io = require('io')
       return io.read(%s)

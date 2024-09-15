@@ -1,4 +1,4 @@
-package executor
+package eval_context
 
 import (
 	"context"
@@ -26,30 +26,30 @@ import (
 	"github.com/yuin/gopher-lua/parse"
 )
 
-type Executor struct {
+type EvalContext struct {
 	compiled sync.Map
 	input    *sync_reader.SyncReader
 	store    *store.Store
 }
 
-func NewExecutor(store *store.Store, input io.Reader) Executor {
+func NewEvalContext(store *store.Store, input io.Reader) EvalContext {
 	sr := sync_reader.NewSyncReader(input)
-	return Executor{
+	return EvalContext{
 		compiled: sync.Map{},
 		input:    &sr,
 		store:    store,
 	}
 }
 
-func NewTestExecutor(input io.Reader) (Executor, *store.Store) {
+func NewTestEvalContext(input io.Reader) (EvalContext, *store.Store) {
 	store, err := store.NewStore(":memory:")
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	return NewExecutor(&store, input), &store
+	return NewEvalContext(&store, input), &store
 }
 
-func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
+func (e *EvalContext) newState(ctx context.Context, state *sync.Map) *lua.LState {
 	L := lua.NewState()
 	L.SetContext(ctx)
 	for _, pair := range []struct {
@@ -84,7 +84,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map) *lua.LState {
 	return L
 }
 
-func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, error) {
+func (e *EvalContext) Compile(reader io.Reader, name string) (*lua.FunctionProto, error) {
 	start := time.Now()
 
 	parsed, err := parse.Parse(reader, name)
@@ -102,7 +102,7 @@ func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, e
 	return compiled, nil
 }
 
-func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map) (interface{}, error) {
+func (e *EvalContext) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map) (interface{}, error) {
 	L := e.newState(ctx, state)
 	defer L.Close()
 
@@ -121,7 +121,7 @@ func (e *Executor) Eval(ctx context.Context, compiled *lua.FunctionProto, state 
 	return nil, nil
 }
 
-func (e *Executor) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, error) {
+func (e *EvalContext) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, error) {
 	hasher := xxhash.New()
 	if _, err := io.Copy(hasher, reader); err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func (e *Executor) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, erro
 	return actual, nil
 }
 
-func (e *Executor) EvalReader(ctx context.Context, reader io.ReadSeeker, state *sync.Map) (interface{}, error) {
+func (e *EvalContext) EvalReader(ctx context.Context, reader io.ReadSeeker, state *sync.Map) (interface{}, error) {
 	compiled, err := e.findOrCompile(reader)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func (e *Executor) EvalReader(ctx context.Context, reader io.ReadSeeker, state *
 	return e.Eval(ctx, compiled, state)
 }
 
-func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Map) (interface{}, error) {
+func (e *EvalContext) EvalScript(ctx context.Context, script string, state *sync.Map) (interface{}, error) {
 	L := e.newState(ctx, state)
 	defer L.Close()
 

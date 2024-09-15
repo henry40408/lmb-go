@@ -1,4 +1,4 @@
-package executor
+package eval_context
 
 import (
 	"context"
@@ -13,7 +13,7 @@ func TestState(t *testing.T) {
 	var state sync.Map
 	state.Store("a", 1.0)
 
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.state['b'] = m.state['a'] + 1

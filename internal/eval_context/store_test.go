@@ -1,4 +1,4 @@
-package executor
+package eval_context
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 
 func TestStore(t *testing.T) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	res, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
   m.store['a'] = 47
@@ -25,7 +25,7 @@ func TestStore(t *testing.T) {
 
 func TestStoreUpdate(t *testing.T) {
 	var state sync.Map
-	e, store := NewTestExecutor(strings.NewReader(""))
+	e, store := NewTestEvalContext(strings.NewReader(""))
 
 	failed, err := e.EvalScript(context.Background(), `
   local m = require('lmb')
@@ -78,7 +78,7 @@ func TestStoreUpdate(t *testing.T) {
 
 func TestStoreUpdateConcurrency(t *testing.T) {
 	var state sync.Map
-	e, store := NewTestExecutor(strings.NewReader(""))
+	e, store := NewTestEvalContext(strings.NewReader(""))
 
 	reader := strings.NewReader(`
   local m = require('lmb')

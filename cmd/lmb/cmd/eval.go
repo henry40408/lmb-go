@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/henry40408/lmb/internal/executor"
+	"github.com/henry40408/lmb/internal/eval_context"
 	"github.com/henry40408/lmb/internal/store"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -33,7 +33,7 @@ var (
 				return err
 			}
 			defer store.Close()
-			e := executor.NewExecutor(&store, os.Stdin)
+			e := eval_context.NewEvalContext(&store, os.Stdin)
 
 			parsedTimeout, err := time.ParseDuration(timeout)
 			if err != nil {

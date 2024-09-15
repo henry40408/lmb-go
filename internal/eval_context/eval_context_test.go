@@ -1,4 +1,4 @@
-package executor
+package eval_context
 
 import (
 	"context"
@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 }
 
 func BenchmarkCompile(b *testing.B) {
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	for i := 0; i < b.N; i++ {
 		e.Compile(strings.NewReader("return 1"), "a")
 	}
@@ -30,7 +30,7 @@ func BenchmarkCompile(b *testing.B) {
 
 func BenchmarkEvalCompiled(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for i := 0; i < b.N; i++ {
 		_, err := e.Eval(context.Background(), compiled, &state)
@@ -42,7 +42,7 @@ func BenchmarkEvalCompiled(b *testing.B) {
 
 func BenchmarkEvalConcurrency(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader(`
   local m = require('lmb')
   m.store:update(function(store)
@@ -60,7 +60,7 @@ func BenchmarkEvalConcurrency(b *testing.B) {
 
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	for i := 0; i < b.N; i++ {
 		e.EvalScript(context.Background(), "return 1", &state)
 	}
@@ -82,7 +82,7 @@ func TestEval(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			e, _ := NewTestExecutor(strings.NewReader(""))
+			e, _ := NewTestEvalContext(strings.NewReader(""))
 			res, err := e.EvalScript(context.Background(), tc.script, &state)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
@@ -92,7 +92,7 @@ func TestEval(t *testing.T) {
 
 func TestEvalWithTimeout(t *testing.T) {
 	var state sync.Map
-	e, _ := NewTestExecutor(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""))
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
 	_, err := e.EvalScript(ctx, "while true do; end", &state)
@@ -109,7 +109,7 @@ func TestEvalReader(t *testing.T) {
 	matches, err := filepath.Glob("../lua-examples/*.lua")
 	assert.NoError(t, err)
 	for _, path := range matches {
-		e, _ := NewTestExecutor(strings.NewReader(""))
+		e, _ := NewTestEvalContext(strings.NewReader(""))
 		file, err := os.Open(path)
 		assert.NoError(t, err)
 		defer file.Close()
