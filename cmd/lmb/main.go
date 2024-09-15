@@ -8,14 +8,25 @@ import (
 	"sync"
 	"time"
 
+	"github.com/henry40408/lmb"
 	"github.com/henry40408/lmb/internal/database"
 	"github.com/henry40408/lmb/internal/executor"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
 var version string
 
+func init() {
+	zerolog.MessageFieldName = "msg"
+
+	level := lmb.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	zerolog.SetGlobalLevel(level)
+}
+
 func main() {
+	var debug bool
 	var filePath string
 	var timeout string
 
@@ -39,10 +50,18 @@ func main() {
 				return err
 			}
 
-			duration := time.Duration(parsedTimeout.Seconds()) * time.Second
-			ctx, cancel := context.WithTimeout(context.Background(), duration)
+			timeoutDur := time.Duration(parsedTimeout.Seconds()) * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), timeoutDur)
 			defer cancel()
+
+			evalLogger := log.With().Str("file_path", filePath).Logger()
+			start := time.Now()
+
 			res, err := e.EvalFile(ctx, filePath, &state, db)
+
+			duration := time.Since(start)
+			evalLogger.Debug().Dur("duration", duration).Msg("file evaluated")
+
 			if err != nil {
 				return err
 			}
@@ -59,6 +78,7 @@ func main() {
 	evalCmd.Flags().StringVar(&filePath, "file", "", "script path")
 	evalCmd.MarkFlagRequired("file")
 
+	rootCmd.PersistentFlags().BoolVarP(&debug, "debug", "d", false, "debug mode")
 	rootCmd.PersistentFlags().StringVar(&timeout, "timeout", "30s", "timeout in duration format e.g. 30s, 1m30s, 90s")
 	rootCmd.AddCommand(evalCmd)
 

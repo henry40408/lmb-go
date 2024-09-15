@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/cespare/xxhash"
 	httpMod "github.com/cjoudrey/gluahttp"
@@ -20,6 +20,7 @@ import (
 	"github.com/henry40408/lmb/internal/lua_convert"
 	jsonMod "github.com/layeh/gopher-json"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	cryptoMod "github.com/tengattack/gluacrypto"
 	regexMod "github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
@@ -41,7 +42,7 @@ func NewExecutor(store *sql.DB) Executor {
 func NewTestExecutor() (Executor, *sql.DB) {
 	db, err := database.OpenDB(":memory:")
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err)
 	}
 	return NewExecutor(db), db
 }
@@ -70,7 +71,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map, store *sql.DB)
 	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
 	L.PreloadModule("json", jsonMod.Loader)
 
-	zlogger := zerolog.New(os.Stdout).With().Logger()
+	zlogger := zerolog.New(os.Stdout).With().Ctx(ctx).Logger()
 	logger := logMod.NewLogger(zlogger)
 	L.PreloadModule("logger", logger.Loader)
 
@@ -81,15 +82,22 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map, store *sql.DB)
 	return L
 }
 
-func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, error) {
-	parsed, err := parse.Parse(reader, name)
+func (e *Executor) Compile(reader io.Reader, hash string) (*lua.FunctionProto, error) {
+	logger := log.With().Str("hash", hash).Logger()
+	start := time.Now()
+
+	parsed, err := parse.Parse(reader, hash)
 	if err != nil {
 		return nil, err
 	}
-	compiled, err := lua.Compile(parsed, name)
+	compiled, err := lua.Compile(parsed, hash)
 	if err != nil {
 		return nil, err
 	}
+
+	duration := time.Since(start)
+	logger.Trace().Dur("duration", duration).Msg("compiled")
+
 	return compiled, nil
 }
 
