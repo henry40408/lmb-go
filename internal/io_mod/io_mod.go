@@ -3,6 +3,7 @@ package io_mod
 import (
 	"io"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/henry40408/lmb/internal/lua_convert"
@@ -64,20 +65,9 @@ func (m *ioModule) read(L *lua.LState) int {
 			return 1
 		case "*n":
 			// "*n" # Reads a numeral and returns it as number.
-			var line []byte
-			for {
-				fragment, isPrefix, err := m.sr.ReadLine()
-				if err != nil {
-					if err == io.EOF {
-						L.Push(lua.LNil)
-						return 1
-					}
-					L.RaiseError(err.Error())
-				}
-				line = append(line, fragment...)
-				if !isPrefix {
-					break
-				}
+			line, err := m.sr.ReadLine()
+			if err != nil && err != io.EOF {
+				L.RaiseError(err.Error())
 			}
 			n, err := strconv.ParseFloat(string(line), 64)
 			if err != nil {
@@ -87,42 +77,19 @@ func (m *ioModule) read(L *lua.LState) int {
 			return 1
 		case "*l":
 			// "*l" # Reads the next line skipping the end of line.
-			var line []byte
-			for {
-				fragment, isPrefix, err := m.sr.ReadLine()
-				if err != nil {
-					if err == io.EOF {
-						L.Push(lua.LNil)
-						return 1
-					}
-					L.RaiseError(err.Error())
-				}
-				line = append(line, fragment...)
-				if !isPrefix {
-					break
-				}
+			line, err := m.sr.ReadLine()
+			if err != nil && err != io.EOF {
+				L.RaiseError(err.Error())
 			}
-			L.Push(lua_convert.ToLuaValue(L, string(line)))
+			L.Push(lua_convert.ToLuaValue(L, strings.TrimRight(line, "\n")))
 			return 1
 		case "*L":
 			// "*L" # Reads the next line keeping the end of line.
-			var line []byte
-			for {
-				fragment, isPrefix, err := m.sr.ReadLine()
-				if err != nil {
-					if err == io.EOF {
-						L.Push(lua.LNil)
-						return 1
-					}
-					L.RaiseError(err.Error())
-				}
-				line = append(line, fragment...)
-				if !isPrefix {
-					break
-				}
+			line, err := m.sr.ReadLine()
+			if err != nil && err != io.EOF {
+				L.RaiseError(err.Error())
 			}
-			line = append(line, '\n')
-			L.Push(lua_convert.ToLuaValue(L, string(line)))
+			L.Push(lua_convert.ToLuaValue(L, line))
 			return 1
 		}
 	}

@@ -21,10 +21,10 @@ func (sr *SyncReader) ReadAll() ([]byte, error) {
 	defer sr.m.Unlock()
 	return io.ReadAll(&sr.Reader)
 }
-func (sr *SyncReader) ReadLine() ([]byte, bool, error) {
+func (sr *SyncReader) ReadLine() (string, error) {
 	sr.m.Lock()
 	defer sr.m.Unlock()
-	return sr.Reader.ReadLine()
+	return sr.Reader.ReadString('\n')
 }
 
 func (sr *SyncReader) Read(p []byte) (int, error) {
