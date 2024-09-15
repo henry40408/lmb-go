@@ -49,10 +49,10 @@ func migrateDB(db *sql.DB) error {
 	return nil
 }
 
-func NewStore(dsn string) (Store, error) {
+func NewStore(dsn string) (*Store, error) {
 	db, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		return Store{}, err
+		return nil, err
 	}
 
 	// https://github.com/mattn/go-sqlite3/issues/274#issuecomment-191597862
@@ -67,15 +67,15 @@ func NewStore(dsn string) (Store, error) {
     PRAGMA synchronous = NORMAL;
   `)
 	if err != nil {
-		return Store{}, err
+		return nil, err
 	}
 
 	err = migrateDB(db)
 	if err != nil {
-		return Store{}, err
+		return nil, err
 	}
 
-	return Store{db}, nil
+	return &Store{db}, nil
 }
 
 func (s *Store) Close() error {

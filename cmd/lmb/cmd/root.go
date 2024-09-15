@@ -34,6 +34,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&timeout, "timeout", "30s", "Timeout in human-readable format e.g. 30s, 1m30s")
 
 	rootCmd.AddCommand(evalCmd)
+	rootCmd.AddCommand(checkSyntaxCmd)
 }
 
 func Execute() error {

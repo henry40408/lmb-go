@@ -23,6 +23,7 @@ import (
 	cryptoMod "github.com/tengattack/gluacrypto"
 	regexMod "github.com/yuin/gluare"
 	lua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/ast"
 	"github.com/yuin/gopher-lua/parse"
 )
 
@@ -32,21 +33,21 @@ type EvalContext struct {
 	store    *store.Store
 }
 
-func NewEvalContext(store *store.Store, input io.Reader) EvalContext {
+func NewEvalContext(store *store.Store, input io.Reader) *EvalContext {
 	sr := sync_reader.NewSyncReader(input)
-	return EvalContext{
+	return &EvalContext{
 		compiled: sync.Map{},
 		input:    &sr,
 		store:    store,
 	}
 }
 
-func NewTestEvalContext(input io.Reader) (EvalContext, *store.Store) {
+func NewTestEvalContext(input io.Reader) (*EvalContext, *store.Store) {
 	store, err := store.NewStore(":memory:")
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	return NewEvalContext(&store, input), &store
+	return NewEvalContext(store, input), store
 }
 
 func (e *EvalContext) newState(ctx context.Context, state *sync.Map) *lua.LState {
@@ -87,7 +88,7 @@ func (e *EvalContext) newState(ctx context.Context, state *sync.Map) *lua.LState
 func (e *EvalContext) Compile(reader io.Reader, name string) (*lua.FunctionProto, error) {
 	start := time.Now()
 
-	parsed, err := parse.Parse(reader, name)
+	parsed, err := e.Parse(reader, name)
 	if err != nil {
 		return nil, err
 	}
@@ -161,4 +162,8 @@ func (e *EvalContext) EvalScript(ctx context.Context, script string, state *sync
 	}
 
 	return e.Eval(ctx, compiled, state)
+}
+
+func (e *EvalContext) Parse(reader io.Reader, name string) ([]ast.Stmt, error) {
+	return parse.Parse(reader, name)
 }

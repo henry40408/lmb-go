@@ -118,6 +118,12 @@ func TestEvalReader(t *testing.T) {
 	}
 }
 
+func TestParse(t *testing.T) {
+	e, _ := NewTestEvalContext(strings.NewReader(""))
+	_, err := e.Parse(strings.NewReader("ret 1"), "invalid")
+	assert.ErrorContains(t, err, "line:1(column:5)")
+}
+
 func setupServer(listener net.Listener) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
