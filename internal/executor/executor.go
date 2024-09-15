@@ -141,11 +141,12 @@ func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Ma
 	}
 	defer file.Close()
 
-	script, err := io.ReadAll(file)
+	compiled, err := e.findOrCompile(file)
 	if err != nil {
 		return nil, err
 	}
-	return e.EvalScript(ctx, string(script), state, store)
+
+	return e.Eval(ctx, compiled, state, store)
 }
 
 func (e *Executor) EvalScript(ctx context.Context, script string, state *sync.Map, store *sql.DB) (interface{}, error) {
