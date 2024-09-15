@@ -36,7 +36,7 @@ func FromLuaValue(lv lua.LValue) interface{} {
 	}
 }
 
-func ToLuaValue[T any](L *lua.LState, value T) lua.LValue {
+func ToLuaValue(L *lua.LState, value interface{}) lua.LValue {
 	v := reflect.ValueOf(value)
 	switch v.Kind() {
 	case reflect.Bool:

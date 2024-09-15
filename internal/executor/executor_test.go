@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -70,7 +71,7 @@ func TestEvalWithTimeout(t *testing.T) {
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
-func TestEvalFile(t *testing.T) {
+func TestEvalReader(t *testing.T) {
 	var state sync.Map
 
 	listener, _ := net.Listen("tcp", "127.0.0.1:0")
@@ -81,7 +82,10 @@ func TestEvalFile(t *testing.T) {
 	assert.NoError(t, err)
 	for _, path := range matches {
 		e, store := NewTestExecutor()
-		_, err := e.EvalFile(context.Background(), path, &state, store)
+		file, err := os.Open(path)
+		assert.NoError(t, err)
+		defer file.Close()
+		_, err = e.EvalReader(context.Background(), file, &state, store)
 		assert.NoError(t, err, path)
 	}
 }

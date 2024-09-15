@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,7 +68,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map, store *store.S
 	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
 	L.PreloadModule("json", jsonMod.Loader)
 
-	logger := logMod.NewLogger(log.With().Logger())
+	logger := logMod.NewLogger(log.Logger)
 	L.PreloadModule("logger", logger.Loader)
 
 	L.PreloadModule("re", regexMod.Loader)
@@ -79,21 +78,20 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map, store *store.S
 	return L
 }
 
-func (e *Executor) Compile(reader io.Reader, hash string) (*lua.FunctionProto, error) {
-	logger := log.With().Str("hash", hash).Logger()
+func (e *Executor) Compile(reader io.Reader, name string) (*lua.FunctionProto, error) {
 	start := time.Now()
 
-	parsed, err := parse.Parse(reader, hash)
+	parsed, err := parse.Parse(reader, name)
 	if err != nil {
 		return nil, err
 	}
-	compiled, err := lua.Compile(parsed, hash)
+	compiled, err := lua.Compile(parsed, name)
 	if err != nil {
 		return nil, err
 	}
 
 	duration := time.Since(start)
-	logger.Trace().Dur("duration", duration).Msg("compiled")
+	log.Trace().Str("name", name).Str("duration", duration.String()).Msg("compiled")
 
 	return compiled, nil
 }
@@ -139,18 +137,11 @@ func (e *Executor) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, erro
 	return actual, nil
 }
 
-func (e *Executor) EvalFile(ctx context.Context, filePath string, state *sync.Map, store *store.Store) (interface{}, error) {
-	file, err := os.Open(filePath)
+func (e *Executor) EvalReader(ctx context.Context, reader io.ReadSeeker, state *sync.Map, store *store.Store) (interface{}, error) {
+	compiled, err := e.findOrCompile(reader)
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
-
-	compiled, err := e.findOrCompile(file)
-	if err != nil {
-		return nil, err
-	}
-
 	return e.Eval(ctx, compiled, state, store)
 }
 

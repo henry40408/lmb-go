@@ -15,6 +15,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	SQL_GET    = `SELECT value FROM store WHERE name = ?`
+	SQL_UPSERT = `INSERT OR REPLACE INTO store (name, value, type_hint, size) VALUES (?, ?, ?, ?)`
+)
+
 type Store struct {
 	db *sql.DB
 }
@@ -24,14 +29,20 @@ func migrateDB(db *sql.DB) error {
 	if err != nil {
 		return err
 	}
+	defer d.Close()
+
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return err
 	}
+	// defer driver.Close() // database is closed
+
 	m, err := migrate.NewWithInstance("iofs", d, "sqlite", driver)
 	if err != nil {
 		return err
 	}
+	// defer m.Close() // database is closed
+
 	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
 		return err
 	}
@@ -43,7 +54,12 @@ func NewStore(dsn string) (Store, error) {
 	if err != nil {
 		return Store{}, err
 	}
+
+	// https://github.com/mattn/go-sqlite3/issues/274#issuecomment-191597862
 	db.SetMaxOpenConns(1)
+
+	// https://github.com/dani-garcia/vaultwarden/blob/3dbfc484a54c41d1759646444b439da06445060b/src/db/mod.rs#L234
+	// https://github.com/dani-garcia/vaultwarden/blob/3dbfc484a54c41d1759646444b439da06445060b/src/db/mod.rs#L447
 	_, err = db.Exec(`
     PRAGMA busy_timeout = 5000;
     PRAGMA foreign_keys = OFF;
@@ -53,11 +69,17 @@ func NewStore(dsn string) (Store, error) {
 	if err != nil {
 		return Store{}, err
 	}
+
 	err = migrateDB(db)
 	if err != nil {
 		return Store{}, err
 	}
+
 	return Store{db}, nil
+}
+
+func (s *Store) Close() error {
+	return s.db.Close()
 }
 
 func deserializeData(value []byte, target interface{}) error {
@@ -66,7 +88,7 @@ func deserializeData(value []byte, target interface{}) error {
 }
 
 func (s *Store) Get(name string) (interface{}, error) {
-	stmt, err := s.db.Prepare(`SELECT value FROM store WHERE name = ?`)
+	stmt, err := s.db.Prepare(SQL_GET)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +117,7 @@ func serializeData(data interface{}) []byte {
 }
 
 func (s *Store) Put(name string, value interface{}) error {
-	stmt, err := s.db.Prepare(`INSERT OR REPLACE INTO store (name, value, type_hint, size) VALUES (?, ?, ?, ?)`)
+	stmt, err := s.db.Prepare(SQL_UPSERT)
 	if err != nil {
 		return err
 	}
@@ -128,7 +150,7 @@ func (st *StoreTx) Commit() error {
 }
 
 func (st *StoreTx) Get(name string) (interface{}, error) {
-	stmt, err := st.tx.Prepare(`SELECT value FROM store WHERE name = ?`)
+	stmt, err := st.tx.Prepare(SQL_GET)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +173,7 @@ func (st *StoreTx) Get(name string) (interface{}, error) {
 }
 
 func (st *StoreTx) Put(name string, value interface{}) error {
-	stmt, err := st.tx.Prepare(`INSERT OR REPLACE INTO store (name, value, type_hint, size) VALUES (?, ?, ?, ?)`)
+	stmt, err := st.tx.Prepare(SQL_UPSERT)
 	if err != nil {
 		return err
 	}

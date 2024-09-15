@@ -1,8 +1,6 @@
 package lmb_mod
 
 import (
-	"bytes"
-	"encoding/gob"
 	"sync"
 
 	"github.com/henry40408/lmb/internal/lua_convert"
@@ -15,6 +13,9 @@ type lmbModule struct {
 	// share state. If data sharing across evaluations is required, use the store instead.
 	// Example use case for state: HTTP request context
 	state *sync.Map
+	// store represents persistent data storage using SQLite. It's designed to maintain
+	// data across multiple evaluation cycles and program executions. Use the store for
+	// data that needs to persist long-term and be accessible in future runs.
 	store *store.Store
 }
 
@@ -34,12 +35,10 @@ func (m *lmbModule) Loader(L *lua.LState) int {
 
 	storeTable := L.NewTable()
 	L.SetField(storeTable, "update", L.NewFunction(m.storeUpdate))
-
 	storeMeta := L.NewTable()
 	L.SetField(storeMeta, "__index", L.NewFunction(m.storeGet))
 	L.SetField(storeMeta, "__newindex", L.NewFunction(m.storePut))
 	L.SetMetatable(storeTable, storeMeta)
-
 	L.SetField(mod, "store", storeTable)
 
 	L.Push(mod)
@@ -47,51 +46,37 @@ func (m *lmbModule) Loader(L *lua.LState) int {
 }
 
 func (m *lmbModule) get(L *lua.LState) int {
-	key := L.CheckString(2)
-	raw, ok := m.state.Load(key)
+	name := L.CheckString(2)
+	value, ok := m.state.Load(name)
 	if !ok {
 		L.Push(lua.LNil)
 		return 1
 	}
-	L.Push(lua_convert.ToLuaValue(L, raw))
+	L.Push(lua_convert.ToLuaValue(L, value))
 	return 1
 }
 
 func (m *lmbModule) set(L *lua.LState) int {
 	key := L.CheckString(2)
-	value := L.Get(3)
-	m.state.Store(key, lua_convert.FromLuaValue(value))
+	data := L.Get(3)
+	m.state.Store(key, lua_convert.FromLuaValue(data))
 	return 0
-}
-
-func serializeData(data interface{}) []byte {
-	var buffer bytes.Buffer
-	encoder := gob.NewEncoder(&buffer)
-	encoder.Encode(data)
-	return buffer.Bytes()
-}
-
-func deserializeData(value []byte, target interface{}) error {
-	decoder := gob.NewDecoder(bytes.NewBuffer(value))
-	return decoder.Decode(target)
 }
 
 func (m *lmbModule) storeGet(L *lua.LState) int {
 	name := L.CheckString(2)
-	data, err := m.store.Get(name)
+	value, err := m.store.Get(name)
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
-	value := lua_convert.ToLuaValue(L, data)
-	L.Push(value)
+	L.Push(lua_convert.ToLuaValue(L, value))
 	return 1
 }
 
 func (m *lmbModule) storePut(L *lua.LState) int {
 	name := L.CheckString(2)
-	value := L.Get(3)
-	data := lua_convert.FromLuaValue(value)
-	err := m.store.Put(name, data)
+	value := lua_convert.FromLuaValue(L.Get(3))
+	err := m.store.Put(name, value)
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
@@ -120,9 +105,8 @@ func (m *lmbModule) storeUpdate(L *lua.LState) int {
 	}))
 	L.SetField(mt, "__newindex", L.NewFunction(func(l *lua.LState) int {
 		name := L.CheckString(2)
-		value := L.Get(3)
-		data := lua_convert.FromLuaValue(value)
-		err := st.Put(name, data)
+		value := lua_convert.FromLuaValue(L.Get(3))
+		err := st.Put(name, value)
 		if err != nil {
 			L.RaiseError(err.Error())
 		}

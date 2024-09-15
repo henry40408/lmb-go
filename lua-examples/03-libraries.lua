@@ -23,7 +23,10 @@ end
 
 local function test_logger()
 	local logger = require("logger")
-	logger.info("message from script", { foo = "bar", baz = 1 })
+	logger.debug("debug", { foo = "bar", baz = 1 })
+	logger.info("info", { foo = "bar", baz = 1 })
+	logger.warn("warn", { foo = "bar", baz = 1 })
+	logger.error("error", { foo = "bar", baz = 1 })
 end
 
 local function test_regex()
