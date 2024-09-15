@@ -39,7 +39,8 @@ func main() {
 				return err
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), time.Duration(parsedTimeout.Seconds()))
+			duration := time.Duration(parsedTimeout.Seconds()) * time.Second
+			ctx, cancel := context.WithTimeout(context.Background(), duration)
 			defer cancel()
 			res, err := e.EvalFile(ctx, filePath, &state, db)
 			if err != nil {
@@ -58,11 +59,10 @@ func main() {
 	evalCmd.Flags().StringVar(&filePath, "file", "", "script path")
 	evalCmd.MarkFlagRequired("file")
 
-	rootCmd.Flags().StringVar(&timeout, "timeout", "30s", "timeout in duration format e.g. 30s, 1m30s, 90s")
+	rootCmd.PersistentFlags().StringVar(&timeout, "timeout", "30s", "timeout in duration format e.g. 30s, 1m30s, 90s")
 	rootCmd.AddCommand(evalCmd)
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }

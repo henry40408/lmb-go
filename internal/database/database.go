@@ -6,15 +6,21 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/henry40408/lmb"
 	_ "github.com/mattn/go-sqlite3"
 )
 
 func migrateDB(db *sql.DB) error {
+	d, err := iofs.New(lmb.MigrationFiles, "migrations")
+	if err != nil {
+		return err
+	}
 	driver, err := sqlite3.WithInstance(db, &sqlite3.Config{})
 	if err != nil {
 		return err
 	}
-	m, err := migrate.NewWithDatabaseInstance("file://../../migrations", "sqlite3", driver)
+	m, err := migrate.NewWithInstance("iofs", d, "sqlite", driver)
 	if err != nil {
 		return err
 	}
