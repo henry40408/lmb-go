@@ -19,7 +19,6 @@ import (
 	"github.com/henry40408/lmb/internal/lmb_mod"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	jsonMod "github.com/layeh/gopher-json"
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	cryptoMod "github.com/tengattack/gluacrypto"
 	regexMod "github.com/yuin/gluare"
@@ -71,8 +70,7 @@ func (e *Executor) newState(ctx context.Context, state *sync.Map, store *sql.DB)
 	L.PreloadModule("http", httpMod.NewHttpModule(&http.Client{}).Loader)
 	L.PreloadModule("json", jsonMod.Loader)
 
-	zlogger := zerolog.New(os.Stdout).With().Ctx(ctx).Logger()
-	logger := logMod.NewLogger(zlogger)
+	logger := logMod.NewLogger(log.With().Logger())
 	L.PreloadModule("logger", logger.Loader)
 
 	L.PreloadModule("re", regexMod.Loader)
