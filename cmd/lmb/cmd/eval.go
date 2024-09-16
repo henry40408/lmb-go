@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,12 +15,12 @@ import (
 )
 
 func init() {
-	evalCmd.Flags().StringVar(&evalFilePath, "file", "", "Script path (use '-' for stdin)")
+	evalCmd.Flags().StringVar(&scriptPath, "file", "", "Script path (use '-' for stdin)")
+	rootCmd.AddCommand(evalCmd)
 }
 
 var (
-	evalFilePath string
-	evalCmd      = &cobra.Command{
+	evalCmd = &cobra.Command{
 		Use:   "eval",
 		Short: "Evaluate a file",
 		Long:  "Evaluate a file",
@@ -35,20 +34,17 @@ var (
 			defer store.Close()
 			e := eval_context.NewEvalContext(store, os.Stdin)
 
-			parsedTimeout, err := time.ParseDuration(timeout)
+			ctx, cancel, err := setupTimeoutContext(timeout)
 			if err != nil {
 				return err
 			}
-
-			timeoutDur := time.Duration(parsedTimeout.Seconds()) * time.Second
-			ctx, cancel := context.WithTimeout(context.Background(), timeoutDur)
 			defer cancel()
 
 			var reader io.Reader
-			if evalFilePath == "-" {
+			if scriptPath == "-" {
 				reader = os.Stdin
 			} else {
-				file, err := os.Open(evalFilePath)
+				file, err := os.Open(scriptPath)
 				if err != nil {
 					return err
 				}
@@ -56,10 +52,10 @@ var (
 				reader = file
 			}
 
-			evalLogger := log.With().Str("file_path", evalFilePath).Logger()
+			evalLogger := log.With().Str("file_path", scriptPath).Logger()
 			start := time.Now()
 
-			compiled, err := e.Compile(reader, evalFilePath)
+			compiled, err := e.Compile(reader, scriptPath)
 			if err != nil {
 				return err
 			}

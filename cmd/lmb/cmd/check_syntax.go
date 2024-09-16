@@ -11,11 +11,11 @@ import (
 )
 
 func init() {
-	checkSyntaxCmd.Flags().StringVar(&checkFilePath, "file", "", "Script path (use '-' for stdin)")
+	checkSyntaxCmd.Flags().StringVar(&scriptPath, "file", "", "Script path (use '-' for stdin)")
+	rootCmd.AddCommand(checkSyntaxCmd)
 }
 
 var (
-	checkFilePath  string
 	checkSyntaxCmd = &cobra.Command{
 		Use:   "check-syntax",
 		Short: "Check syntax of Lua script",
@@ -25,17 +25,17 @@ var (
 			e := eval_context.NewEvalContext(store, strings.NewReader(""))
 
 			var reader io.Reader
-			if checkFilePath == "-" {
+			if scriptPath == "-" {
 				reader = os.Stdin
 			} else {
-				file, err := os.Open(checkFilePath)
+				file, err := os.Open(scriptPath)
 				if err != nil {
 					return err
 				}
 				defer file.Close()
 				reader = file
 			}
-			_, err := e.Parse(reader, checkFilePath)
+			_, err := e.Parse(reader, scriptPath)
 			if err != nil {
 				return err
 			}
