@@ -11,9 +11,9 @@ type SyncReader struct {
 	m sync.Mutex
 }
 
-func NewSyncReader(reader io.Reader) SyncReader {
+func NewSyncReader(reader io.Reader) *SyncReader {
 	r := bufio.NewReader(reader)
-	return SyncReader{Reader: *r}
+	return &SyncReader{Reader: *r}
 }
 
 func (sr *SyncReader) ReadAll() ([]byte, error) {

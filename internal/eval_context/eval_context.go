@@ -13,8 +13,8 @@ import (
 	httpMod "github.com/cjoudrey/gluahttp"
 	urlMod "github.com/cjoudrey/gluaurl"
 	logMod "github.com/cosmotek/loguago"
-	"github.com/henry40408/lmb/internal/io_mod"
-	"github.com/henry40408/lmb/internal/lmb_mod"
+	"github.com/henry40408/lmb/internal/eval_context/modules/io_mod"
+	"github.com/henry40408/lmb/internal/eval_context/modules/lmb_mod"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	"github.com/henry40408/lmb/internal/store"
 	"github.com/henry40408/lmb/internal/sync_reader"
@@ -37,7 +37,7 @@ func NewEvalContext(store *store.Store, input io.Reader) *EvalContext {
 	sr := sync_reader.NewSyncReader(input)
 	return &EvalContext{
 		compiled: sync.Map{},
-		input:    &sr,
+		input:    sr,
 		store:    store,
 	}
 }

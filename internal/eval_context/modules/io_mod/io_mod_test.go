@@ -1,32 +1,50 @@
-package eval_context
+package io_mod
 
 import (
-	"context"
 	"fmt"
 	"strings"
-	"sync"
 	"testing"
 
+	"github.com/henry40408/lmb/internal/eval_context/testutil"
+	"github.com/henry40408/lmb/internal/lua_convert"
+	"github.com/henry40408/lmb/internal/sync_reader"
 	"github.com/stretchr/testify/assert"
+	lua "github.com/yuin/gopher-lua"
+	"github.com/yuin/gopher-lua/parse"
 )
 
 func BenchmarkRead(b *testing.B) {
-	var state sync.Map
-	e, _ := NewTestEvalContext(strings.NewReader(""))
-	compiled, err := e.Compile(strings.NewReader(`
+	L := testutil.NewLuaTestState()
+	defer L.Close()
+
+	sr := sync_reader.NewSyncReader(strings.NewReader(""))
+	L.PreloadModule("io", NewIoMod(sr).Loader)
+
+	reader := strings.NewReader(`
   local io = require('io')
   return io.read('*a')
-  `), "read")
+  `)
+	chunk, err := parse.Parse(reader, "compiled")
+	if err != nil {
+		b.Error(err)
+	}
+	proto, err := lua.Compile(chunk, "compiled")
 	if err != nil {
 		b.Error(err)
 	}
 	for i := 0; i < b.N; i++ {
-		e.Eval(context.Background(), compiled, &state)
+		L.Push(L.NewFunctionFromProto(proto))
+		err := L.PCall(0, lua.MultRet, nil)
+		if err != nil {
+			b.Error(err)
+		}
+		if L.GetTop() > 0 {
+			L.Pop(1) // pop the result or registry overflows
+		}
 	}
 }
 
 func TestRead(t *testing.T) {
-	var state sync.Map
 	var cases = map[string]struct {
 		input    string
 		format   string
@@ -48,12 +66,22 @@ func TestRead(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e, _ := NewTestEvalContext(strings.NewReader(tc.input))
-			res, err := e.EvalScript(context.Background(), fmt.Sprintf(`
+			L := testutil.NewLuaTestState()
+			defer L.Close()
+
+			sr := sync_reader.NewSyncReader(strings.NewReader(tc.input))
+			L.PreloadModule("io", NewIoMod(sr).Loader)
+
+			script := fmt.Sprintf(`
       local io = require('io')
       return io.read(%s)
-      `, tc.format), &state)
+      `, tc.format)
+
+			err := L.DoString(script)
 			assert.NoError(t, err)
+			assert.Greater(t, L.GetTop(), 0, "expect result")
+
+			res := lua_convert.FromLuaValue(L.Get(-1))
 			assert.Equal(t, tc.expected, res)
 		})
 	}
