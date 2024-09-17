@@ -6,6 +6,7 @@ require (
 	github.com/cespare/xxhash v1.1.0
 	github.com/cjoudrey/gluahttp v0.0.0-20201111170219-25003d9adfa9
 	github.com/cosmotek/loguago v1.0.0
+	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/layeh/gopher-json v0.0.0-20201124131017-552bb3c4c3bf
 	github.com/mattn/go-sqlite3 v1.14.23
 	github.com/rs/zerolog v1.33.0
@@ -16,7 +17,6 @@ require (
 )
 
 require (
-	github.com/golang-migrate/migrate/v4 v4.18.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

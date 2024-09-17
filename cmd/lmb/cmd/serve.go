@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -131,11 +131,7 @@ var (
 
 					setHeadersFromState(w, &state)
 					setStatusCode(w, &state)
-
-					if err := json.NewEncoder(w).Encode(res); err != nil {
-						http.Error(w, err.Error(), http.StatusInternalServerError)
-						return
-					}
+					fmt.Fprintf(w, "%v", res)
 				}),
 			}
 			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
