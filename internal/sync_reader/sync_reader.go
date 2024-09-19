@@ -32,9 +32,3 @@ func (sr *SyncReader) Read(p []byte) (int, error) {
 	defer sr.m.Unlock()
 	return sr.Reader.Read(p)
 }
-
-func (sr *SyncReader) ReadRune() (rune, int, error) {
-	sr.m.Lock()
-	defer sr.m.Unlock()
-	return sr.Reader.ReadRune()
-}
