@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 
 func BenchmarkCompile(b *testing.B) {
 	e, _ := NewTestEvalContext(strings.NewReader(""))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e.Compile(strings.NewReader("return 1"), "a")
 	}
 }
@@ -32,7 +32,7 @@ func BenchmarkEvalCompiled(b *testing.B) {
 	var state sync.Map
 	e, _ := NewTestEvalContext(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := e.Eval(context.Background(), compiled, &state)
 		if err != nil {
 			b.Error(err)
@@ -50,7 +50,7 @@ func BenchmarkEvalConcurrency(b *testing.B) {
   end)
   return true
   `), "concurrency")
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := e.Eval(context.Background(), compiled, &state)
 		if err != nil {
 			b.Error(err)
@@ -61,7 +61,7 @@ func BenchmarkEvalConcurrency(b *testing.B) {
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
 	e, _ := NewTestEvalContext(strings.NewReader(""))
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		e.EvalScript(context.Background(), "return 1", &state)
 	}
 }

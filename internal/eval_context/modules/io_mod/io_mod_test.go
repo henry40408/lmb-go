@@ -32,7 +32,7 @@ func BenchmarkRead(b *testing.B) {
 	if err != nil {
 		b.Error(err)
 	}
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		L.Push(L.NewFunctionFromProto(proto))
 		err := L.PCall(0, lua.MultRet, nil)
 		if err != nil {

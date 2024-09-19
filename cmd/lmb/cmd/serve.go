@@ -6,10 +6,14 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
+	"unicode"
 
 	"github.com/henry40408/lmb/internal/eval_context"
 	"github.com/henry40408/lmb/internal/store"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
@@ -116,22 +120,43 @@ var (
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					var state sync.Map
 
+					requestState := make(map[string]interface{})
+					requestHeaders := make(map[string]interface{})
+					for key, values := range r.Header {
+						requestHeaders[strings.Map(unicode.ToLower, key)] = values
+					}
+					requestState["headers"] = requestHeaders
+					requestState["path"] = r.URL.Path
+					requestState["method"] = r.Method
+					state.Store("request", requestState)
+
 					ctx, cancel, err := setupTimeoutContext(timeout)
 					if err != nil {
-						http.Error(w, err.Error(), http.StatusInternalServerError)
+						log.Error().Err(err).Msg("failed to set timeout")
+						http.Error(w, "", http.StatusInternalServerError)
 						return
 					}
 					defer cancel()
 
 					res, err := e.Eval(ctx, compiled, &state)
 					if err != nil {
-						http.Error(w, err.Error(), http.StatusInternalServerError)
+						log.Error().Err(err).Msg("request errored")
+						http.Error(w, "", http.StatusInternalServerError)
 						return
 					}
 
 					setHeadersFromState(w, &state)
 					setStatusCode(w, &state)
 					fmt.Fprintf(w, "%v", res)
+
+					if e := log.Debug(); e.Enabled() {
+						logged := log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Str("query", r.URL.RawQuery)
+						loggedHeaders := zerolog.Dict()
+						for key, values := range r.Header {
+							loggedHeaders = loggedHeaders.Strs(key, values)
+						}
+						logged.Dict("headers", loggedHeaders).Msg("request completed")
+					}
 				}),
 			}
 			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
