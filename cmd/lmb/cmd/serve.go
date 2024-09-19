@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 	"unicode"
 
 	"github.com/henry40408/lmb/internal/eval_context"
@@ -16,6 +17,23 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
+
+type responseRecorder struct {
+	http.ResponseWriter
+	Size       int
+	StatusCode int
+}
+
+func (r *responseRecorder) Write(b []byte) (int, error) {
+	size, err := r.ResponseWriter.Write(b)
+	r.Size += size
+	return size, err
+}
+
+func (r *responseRecorder) WriteHeader(statusCode int) {
+	r.StatusCode = statusCode
+	r.ResponseWriter.WriteHeader(statusCode)
+}
 
 func init() {
 	serveCmd.Flags().StringVar(&bind, "bind", "127.0.0.1:3000", "Bind")
@@ -115,42 +133,59 @@ var (
 				return err
 			}
 
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				var state sync.Map
+
+				requestState := make(map[string]interface{})
+				requestHeaders := make(map[string]interface{})
+				for key, values := range r.Header {
+					requestHeaders[strings.Map(unicode.ToLower, key)] = values
+				}
+				requestState["headers"] = requestHeaders
+				requestState["path"] = r.URL.Path
+				requestState["method"] = r.Method
+				state.Store("request", requestState)
+
+				ctx, cancel, err := setupTimeoutContext(timeout)
+				if err != nil {
+					log.Error().Err(err).Msg("failed to set timeout")
+					http.Error(w, "", http.StatusInternalServerError)
+					return
+				}
+				defer cancel()
+
+				res, err := e.Eval(ctx, compiled, &state)
+				if err != nil {
+					log.Error().Err(err).Msg("request errored")
+					http.Error(w, "", http.StatusInternalServerError)
+					return
+				}
+
+				setHeadersFromState(w, &state)
+				setStatusCode(w, &state)
+				fmt.Fprintf(w, "%v", res)
+			}
+
 			server := &http.Server{
 				Addr: bind,
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					var state sync.Map
-
-					requestState := make(map[string]interface{})
-					requestHeaders := make(map[string]interface{})
-					for key, values := range r.Header {
-						requestHeaders[strings.Map(unicode.ToLower, key)] = values
-					}
-					requestState["headers"] = requestHeaders
-					requestState["path"] = r.URL.Path
-					requestState["method"] = r.Method
-					state.Store("request", requestState)
-
-					ctx, cancel, err := setupTimeoutContext(timeout)
-					if err != nil {
-						log.Error().Err(err).Msg("failed to set timeout")
-						http.Error(w, "", http.StatusInternalServerError)
-						return
-					}
-					defer cancel()
-
-					res, err := e.Eval(ctx, compiled, &state)
-					if err != nil {
-						log.Error().Err(err).Msg("request errored")
-						http.Error(w, "", http.StatusInternalServerError)
-						return
+					recorder := &responseRecorder{
+						ResponseWriter: w,
+						StatusCode:     http.StatusOK,
 					}
 
-					setHeadersFromState(w, &state)
-					setStatusCode(w, &state)
-					fmt.Fprintf(w, "%v", res)
+					begin := time.Now()
+					handler(recorder, r)
+					duration := time.Since(begin)
 
 					if e := log.Debug(); e.Enabled() {
-						logged := log.Debug().Str("method", r.Method).Str("path", r.URL.Path).Str("query", r.URL.RawQuery)
+						logged := log.Debug().
+							Int("size", recorder.Size).
+							Int("status", recorder.StatusCode).
+							Str("method", r.Method).
+							Str("query", r.URL.RawQuery).
+							Stringer("duration", duration).
+							Stringer("url", r.URL)
 						loggedHeaders := zerolog.Dict()
 						for key, values := range r.Header {
 							loggedHeaders = loggedHeaders.Strs(key, values)
