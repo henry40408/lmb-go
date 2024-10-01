@@ -1,21 +1,21 @@
 package io_mod
 
 import (
+	"bufio"
 	"io"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/henry40408/lmb/internal/lua_convert"
-	"github.com/henry40408/lmb/internal/sync_reader"
 	lua "github.com/yuin/gopher-lua"
 )
 
 type ioModule struct {
-	sr *sync_reader.SyncReader
+	input *bufio.Reader
 }
 
-func NewIoMod(sr *sync_reader.SyncReader) *ioModule {
+func NewIoMod(sr *bufio.Reader) *ioModule {
 	return &ioModule{sr}
 }
 
@@ -34,7 +34,7 @@ func (m *ioModule) read(L *lua.LState) int {
 	case lua.LNumber:
 		// read N bytes
 		buf := make([]byte, uint(v))
-		n, err := m.sr.Read(buf)
+		n, err := m.input.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				L.Push(lua.LNil)
@@ -53,7 +53,7 @@ func (m *ioModule) read(L *lua.LState) int {
 		switch string(v) {
 		case "*a":
 			// "*a" # Reads the whole file.
-			content, err := m.sr.ReadAll()
+			content, err := io.ReadAll(m.input)
 			if err != nil {
 				if err == io.EOF {
 					L.Push(lua.LNil)
@@ -65,7 +65,7 @@ func (m *ioModule) read(L *lua.LState) int {
 			return 1
 		case "*n":
 			// "*n" # Reads a numeral and returns it as number.
-			line, err := m.sr.ReadLine()
+			line, err := m.input.ReadString('\n')
 			if err != nil && err != io.EOF {
 				L.RaiseError(err.Error())
 			}
@@ -77,7 +77,7 @@ func (m *ioModule) read(L *lua.LState) int {
 			return 1
 		case "*l":
 			// "*l" # Reads the next line skipping the end of line.
-			line, err := m.sr.ReadLine()
+			line, err := m.input.ReadString('\n')
 			if err != nil && err != io.EOF {
 				L.RaiseError(err.Error())
 			}
@@ -85,7 +85,7 @@ func (m *ioModule) read(L *lua.LState) int {
 			return 1
 		case "*L":
 			// "*L" # Reads the next line keeping the end of line.
-			line, err := m.sr.ReadLine()
+			line, err := m.input.ReadString('\n')
 			if err != nil && err != io.EOF {
 				L.RaiseError(err.Error())
 			}

@@ -1,6 +1,7 @@
 package eval_context
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"net/http"
@@ -17,7 +18,6 @@ import (
 	"github.com/henry40408/lmb/internal/eval_context/modules/lmb_mod"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	"github.com/henry40408/lmb/internal/store"
-	"github.com/henry40408/lmb/internal/sync_reader"
 	jsonMod "github.com/layeh/gopher-json"
 	"github.com/rs/zerolog/log"
 	cryptoMod "github.com/tengattack/gluacrypto"
@@ -29,15 +29,14 @@ import (
 
 type EvalContext struct {
 	compiled sync.Map
-	input    *sync_reader.SyncReader
+	input    *bufio.Reader
 	store    *store.Store
 }
 
 func NewEvalContext(store *store.Store, input io.Reader) *EvalContext {
-	sr := sync_reader.NewSyncReader(input)
 	return &EvalContext{
 		compiled: sync.Map{},
-		input:    sr,
+		input:    bufio.NewReader(input),
 		store:    store,
 	}
 }

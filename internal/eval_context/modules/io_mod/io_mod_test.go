@@ -1,13 +1,13 @@
 package io_mod
 
 import (
+	"bufio"
 	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/henry40408/lmb/internal/eval_context/testutil"
 	"github.com/henry40408/lmb/internal/lua_convert"
-	"github.com/henry40408/lmb/internal/sync_reader"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"
 	"github.com/yuin/gopher-lua/parse"
@@ -17,8 +17,8 @@ func BenchmarkRead(b *testing.B) {
 	L := testutil.NewLuaTestState()
 	defer L.Close()
 
-	sr := sync_reader.NewSyncReader(strings.NewReader(""))
-	L.PreloadModule("io", NewIoMod(sr).Loader)
+	br := bufio.NewReader(strings.NewReader(""))
+	L.PreloadModule("io", NewIoMod(br).Loader)
 
 	reader := strings.NewReader(`
   local io = require('io')
@@ -69,8 +69,8 @@ func TestRead(t *testing.T) {
 			L := testutil.NewLuaTestState()
 			defer L.Close()
 
-			sr := sync_reader.NewSyncReader(strings.NewReader(tc.input))
-			L.PreloadModule("io", NewIoMod(sr).Loader)
+			br := bufio.NewReader(strings.NewReader(tc.input))
+			L.PreloadModule("io", NewIoMod(br).Loader)
 
 			script := fmt.Sprintf(`
       local io = require('io')
