@@ -49,7 +49,7 @@ func NewTestEvalContext(input io.Reader) (*EvalContext, *store.Store) {
 	return NewEvalContext(store, input), store
 }
 
-func (e *EvalContext) newState(ctx context.Context, state *sync.Map) *lua.LState {
+func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Writer) *lua.LState {
 	L := lua.NewState()
 	L.SetContext(ctx)
 	for _, pair := range []struct {
@@ -79,7 +79,7 @@ func (e *EvalContext) newState(ctx context.Context, state *sync.Map) *lua.LState
 	L.PreloadModule("re", regexMod.Loader)
 	L.PreloadModule("url", urlMod.Loader)
 
-	L.PreloadModule("io", io_mod.NewIoMod(e.input).Loader)
+	L.PreloadModule("io", io_mod.NewIoMod(e.input, w).Loader)
 	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state, e.store).Loader)
 	return L
 }
@@ -102,8 +102,8 @@ func (e *EvalContext) Compile(reader io.Reader, name string) (*lua.FunctionProto
 	return compiled, nil
 }
 
-func (e *EvalContext) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map) (interface{}, error) {
-	L := e.newState(ctx, state)
+func (e *EvalContext) Eval(ctx context.Context, compiled *lua.FunctionProto, state *sync.Map, writer io.Writer) (interface{}, error) {
+	L := e.initState(ctx, state, writer)
 	defer L.Close()
 
 	lf := L.NewFunctionFromProto(compiled)
@@ -143,16 +143,16 @@ func (e *EvalContext) findOrCompile(reader io.ReadSeeker) (*lua.FunctionProto, e
 	return actual, nil
 }
 
-func (e *EvalContext) EvalReader(ctx context.Context, reader io.ReadSeeker, state *sync.Map) (interface{}, error) {
+func (e *EvalContext) EvalReader(ctx context.Context, reader io.ReadSeeker, state *sync.Map, writer io.Writer) (interface{}, error) {
 	compiled, err := e.findOrCompile(reader)
 	if err != nil {
 		return nil, err
 	}
-	return e.Eval(ctx, compiled, state)
+	return e.Eval(ctx, compiled, state, writer)
 }
 
-func (e *EvalContext) EvalScript(ctx context.Context, script string, state *sync.Map) (interface{}, error) {
-	L := e.newState(ctx, state)
+func (e *EvalContext) EvalScript(ctx context.Context, script string, state *sync.Map, writer io.Writer) (interface{}, error) {
+	L := e.initState(ctx, state, writer)
 	defer L.Close()
 
 	compiled, err := e.findOrCompile(strings.NewReader(script))
@@ -160,7 +160,7 @@ func (e *EvalContext) EvalScript(ctx context.Context, script string, state *sync
 		return nil, err
 	}
 
-	return e.Eval(ctx, compiled, state)
+	return e.Eval(ctx, compiled, state, writer)
 }
 
 func (e *EvalContext) Parse(reader io.Reader, name string) ([]ast.Stmt, error) {

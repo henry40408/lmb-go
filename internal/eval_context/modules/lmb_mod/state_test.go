@@ -15,7 +15,7 @@ func TestState(t *testing.T) {
 	defer L.Close()
 
 	var state sync.Map
-	state.Store("a", 1.0)
+	state.Store("a", int64(1))
 
 	store, err := store.NewStore(":memory:")
 	assert.NoError(t, err)
@@ -35,6 +35,6 @@ func TestState(t *testing.T) {
 
 	a, _ := state.Load("a")
 	b, _ := state.Load("b")
-	assert.Equal(t, 1.0, a)
-	assert.Equal(t, 2.0, b)
+	assert.Equal(t, int64(1), a)
+	assert.Equal(t, int64(2), b)
 }

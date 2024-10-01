@@ -2,6 +2,7 @@ package io_mod
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
@@ -18,7 +19,8 @@ func BenchmarkRead(b *testing.B) {
 	defer L.Close()
 
 	br := bufio.NewReader(strings.NewReader(""))
-	L.PreloadModule("io", NewIoMod(br).Loader)
+	var w bytes.Buffer
+	L.PreloadModule("io", NewIoMod(br, &w).Loader)
 
 	reader := strings.NewReader(`
   local io = require('io')
@@ -54,12 +56,12 @@ func TestRead(t *testing.T) {
 		"read_all_bytes":          {input: "foobar", format: "6", expected: "foobar"},
 		"read_more_bytes":         {input: "foobar", format: "7", expected: "foobar"},
 		"read_100_bytes":          {input: "foobar", format: "100", expected: "foobar"},
-		"read_unicode_1_byte":     {input: "測試", format: "1", expected: []interface{}{230.0}},
+		"read_unicode_1_byte":     {input: "測試", format: "1", expected: []interface{}{int64(230)}},
 		"read_unicode_3_bytes":    {input: "測試", format: "3", expected: "測"},
-		"read_unicode_4_bytes":    {input: "測試", format: "4", expected: []interface{}{230.0, 184.0, 172.0, 232.0}},
+		"read_unicode_4_bytes":    {input: "測試", format: "4", expected: []interface{}{int64(230), int64(184), int64(172), int64(232)}},
 		"read_unicode_6_bytes":    {input: "測試", format: "6", expected: "測試"},
 		"read_unicode_more_bytes": {input: "測試", format: "7", expected: "測試"},
-		"read_number":             {input: "1949", format: "'*n'", expected: 1949.0},
+		"read_number":             {input: "1949", format: "'*n'", expected: int64(1949)},
 		"read_all":                {input: "hello 你好，世界 world", format: "'*a'", expected: "hello 你好，世界 world"},
 		"read_line_w_eol":         {input: "line 1\nline 2", format: "'*L'", expected: "line 1\n"},
 		"read_line_wo_eol":        {input: "line 1\nline 2", format: "'*l'", expected: "line 1"},
@@ -70,7 +72,8 @@ func TestRead(t *testing.T) {
 			defer L.Close()
 
 			br := bufio.NewReader(strings.NewReader(tc.input))
-			L.PreloadModule("io", NewIoMod(br).Loader)
+			var w bytes.Buffer
+			L.PreloadModule("io", NewIoMod(br, &w).Loader)
 
 			script := fmt.Sprintf(`
       local io = require('io')
@@ -83,6 +86,43 @@ func TestRead(t *testing.T) {
 
 			res := lua_convert.FromLuaValue(L.Get(-1))
 			assert.Equal(t, tc.expected, res)
+		})
+	}
+}
+
+func TestWrite(t *testing.T) {
+	var cases = map[string]struct {
+		output   string
+		expected []byte
+	}{
+		"write_char":    {output: "'a'", expected: []byte("a")},
+		"write_unicode": {output: "'世界'", expected: []byte("世界")},
+		"write_int":     {output: "1", expected: []byte("1")},
+		"write_float":   {output: "1.23", expected: []byte("1.23")},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			L := testutil.NewLuaTestState()
+			defer L.Close()
+
+			br := bufio.NewReader(strings.NewReader(""))
+			var w bytes.Buffer
+			L.PreloadModule("io", NewIoMod(br, &w).Loader)
+
+			script := fmt.Sprintf(`
+      local io = require('io')
+      io.write(%s)
+      return nil
+      `, tc.output)
+
+			err := L.DoString(script)
+			assert.NoError(t, err)
+			assert.Greater(t, L.GetTop(), 0, "expect result")
+
+			res := lua_convert.FromLuaValue(L.Get(-1))
+			assert.Nil(t, res)
+
+			assert.Equal(t, tc.expected, w.Bytes())
 		})
 	}
 }

@@ -57,10 +57,10 @@ func TestStoreUpdate(t *testing.T) {
 
 	alice, err := store.Get("alice")
 	assert.NoError(t, err)
-	assert.Equal(t, 50.0, alice)
+	assert.Equal(t, int64(50), alice)
 	bob, err := store.Get("bob")
 	assert.NoError(t, err)
-	assert.Equal(t, 50.0, bob)
+	assert.Equal(t, int64(50), bob)
 
 	err = L.DoString(`
   local m = require('lmb')
@@ -83,10 +83,10 @@ func TestStoreUpdate(t *testing.T) {
 
 	alice, err = store.Get("alice")
 	assert.NoError(t, err)
-	assert.Equal(t, 0.0, alice)
+	assert.Equal(t, int64(0), alice)
 	bob, err = store.Get("bob")
 	assert.NoError(t, err)
-	assert.Equal(t, 100.0, bob)
+	assert.Equal(t, int64(100), bob)
 }
 
 func TestStoreUpdateConcurrency(t *testing.T) {
@@ -134,7 +134,7 @@ func TestStoreUpdateConcurrency(t *testing.T) {
 
 	value, err := store.Get("counter")
 	assert.NoError(t, err)
-	assert.Equal(t, float64(count), value)
+	assert.Equal(t, int64(count), value)
 }
 
 func setupEvalContext() (*lua.LState, *sync.Map, *store.Store) {

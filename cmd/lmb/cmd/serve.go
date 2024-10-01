@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -154,7 +155,8 @@ var (
 				}
 				defer cancel()
 
-				res, err := e.Eval(ctx, compiled, &state)
+				var buf bytes.Buffer
+				res, err := e.Eval(ctx, compiled, &state, &buf)
 				if err != nil {
 					log.Error().Err(err).Msg("request errored")
 					http.Error(w, "", http.StatusInternalServerError)
@@ -163,7 +165,19 @@ var (
 
 				setHeadersFromState(w, &state)
 				setStatusCode(w, &state)
-				fmt.Fprintf(w, "%v", res)
+				if buf.Len() > 0 {
+					if res != nil {
+						log.Warn().Msg("result will be ignored because buffer is not empty")
+					}
+					_, err := io.Copy(w, &buf)
+					if err != nil {
+						log.Error().Err(err).Msg("request errored")
+						http.Error(w, "", http.StatusInternalServerError)
+						return
+					}
+				} else {
+					fmt.Fprintf(w, "%v", res)
+				}
 			}
 
 			server := &http.Server{

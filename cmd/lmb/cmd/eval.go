@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -59,7 +60,8 @@ var (
 			if err != nil {
 				return err
 			}
-			res, err := e.Eval(ctx, compiled, &state)
+			var w bytes.Buffer
+			res, err := e.Eval(ctx, compiled, &state, &w)
 
 			duration := time.Since(start)
 			evalLogger.Debug().Str("duration", duration.String()).Msg("file evaluated")
@@ -68,12 +70,21 @@ var (
 				return err
 			}
 
-			encoded, err := json.Marshal(res)
-			if err != nil {
-				return err
+			if w.Len() > 0 {
+				if res != nil {
+					log.Warn().Msg("result will be ignored because buffer is not empty")
+				}
+				_, err := io.Copy(os.Stdout, &w)
+				if err != nil {
+					return err
+				}
+			} else {
+				encoded, err := json.Marshal(res)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%s", string(encoded))
 			}
-
-			fmt.Printf("%s", string(encoded))
 			return nil
 		},
 	}

@@ -13,7 +13,11 @@ func FromLuaValue(lv lua.LValue) interface{} {
 	case lua.LBool:
 		return bool(v)
 	case lua.LNumber:
-		return float64(v)
+		if float64(v) == float64(int64(v)) {
+			return int64(v)
+		} else {
+			return float64(v)
+		}
 	case lua.LString:
 		return string(v)
 	case *lua.LTable:

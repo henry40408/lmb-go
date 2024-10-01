@@ -1,6 +1,7 @@
 package eval_context
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net"
@@ -33,7 +34,8 @@ func BenchmarkEvalCompiled(b *testing.B) {
 	e, _ := NewTestEvalContext(strings.NewReader(""))
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for range b.N {
-		_, err := e.Eval(context.Background(), compiled, &state)
+		var w bytes.Buffer
+		_, err := e.Eval(context.Background(), compiled, &state, &w)
 		if err != nil {
 			b.Error(err)
 		}
@@ -51,7 +53,8 @@ func BenchmarkEvalConcurrency(b *testing.B) {
   return true
   `), "concurrency")
 	for range b.N {
-		_, err := e.Eval(context.Background(), compiled, &state)
+		var w bytes.Buffer
+		_, err := e.Eval(context.Background(), compiled, &state, &w)
 		if err != nil {
 			b.Error(err)
 		}
@@ -62,7 +65,8 @@ func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
 	e, _ := NewTestEvalContext(strings.NewReader(""))
 	for range b.N {
-		e.EvalScript(context.Background(), "return 1", &state)
+		var w bytes.Buffer
+		e.EvalScript(context.Background(), "return 1", &state, &w)
 	}
 }
 
@@ -75,15 +79,16 @@ func TestEval(t *testing.T) {
 	}{
 		{"nil", "", nil},
 		{"bool", "return true", bool(true)},
-		{"number", "return 1", float64(1)},
+		{"number", "return 1", int64(1)},
 		{"string", "return 'hello'", string("hello")},
-		{"list", "return {1, 2}", []interface{}{1.0, 2.0}},
-		{"table", "return {a = 1, b = 2}", map[string]interface{}{"a": 1.0, "b": 2.0}},
+		{"list", "return {1, 2}", []interface{}{int64(1), int64(2)}},
+		{"table", "return {a = 1, b = 2}", map[string]interface{}{"a": int64(1), "b": int64(2)}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			e, _ := NewTestEvalContext(strings.NewReader(""))
-			res, err := e.EvalScript(context.Background(), tc.script, &state)
+			var w bytes.Buffer
+			res, err := e.EvalScript(context.Background(), tc.script, &state, &w)
 			assert.NoError(t, err)
 			assert.Equal(t, tc.expected, res)
 		})
@@ -95,7 +100,8 @@ func TestEvalWithTimeout(t *testing.T) {
 	e, _ := NewTestEvalContext(strings.NewReader(""))
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
-	_, err := e.EvalScript(ctx, "while true do; end", &state)
+	var w bytes.Buffer
+	_, err := e.EvalScript(ctx, "while true do; end", &state, &w)
 	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
@@ -113,7 +119,8 @@ func TestEvalReader(t *testing.T) {
 		file, err := os.Open(path)
 		assert.NoError(t, err)
 		defer file.Close()
-		_, err = e.EvalReader(context.Background(), file, &state)
+		var w bytes.Buffer
+		_, err = e.EvalReader(context.Background(), file, &state, &w)
 		assert.NoError(t, err, path)
 	}
 }
