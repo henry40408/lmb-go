@@ -3,7 +3,6 @@ package cmd
 import (
 	"os"
 
-	"github.com/henry40408/lmb"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 )
@@ -20,7 +19,7 @@ var (
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			zerolog.MessageFieldName = "msg"
 
-			level := lmb.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+			level := parseLogLevel(os.Getenv("LOG_LEVEL"))
 			zerolog.SetGlobalLevel(level)
 			if debug {
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)

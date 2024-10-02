@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/henry40408/lmb/internal/eval_context/testutil"
+	"github.com/henry40408/lmb/internal/eval_context/modules/testutil"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	"github.com/stretchr/testify/assert"
 	lua "github.com/yuin/gopher-lua"

@@ -116,7 +116,7 @@ func (m *lmbModule) storeUpdate(L *lua.LState) int {
 
 	L.Push(f)
 	L.Push(t)
-	err = L.PCall(1, 0, nil)
+	err = L.PCall(1, lua.MultRet, nil)
 	if err != nil {
 		L.RaiseError(err.Error())
 	}
@@ -126,5 +126,10 @@ func (m *lmbModule) storeUpdate(L *lua.LState) int {
 		L.RaiseError(err.Error())
 	}
 
-	return 0
+	nResults := L.GetTop() - 1
+	if nResults == 0 {
+		L.Push(lua.LNil)
+		return 1
+	}
+	return nResults
 }

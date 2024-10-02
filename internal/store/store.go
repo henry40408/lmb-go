@@ -11,7 +11,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/sqlite3"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/henry40408/lmb"
+	"github.com/henry40408/lmb/migrations"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -25,7 +25,7 @@ type Store struct {
 }
 
 func migrateDB(db *sql.DB) error {
-	d, err := iofs.New(lmb.MigrationFiles, "migrations")
+	d, err := iofs.New(migrations.MigrationFiles, ".")
 	if err != nil {
 		return err
 	}

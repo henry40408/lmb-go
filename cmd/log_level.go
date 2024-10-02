@@ -1,4 +1,4 @@
-package lmb
+package cmd
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func ParseLogLevel(levelStr string) zerolog.Level {
+func parseLogLevel(levelStr string) zerolog.Level {
 	switch strings.ToLower(levelStr) {
 	case "trace":
 		return zerolog.TraceLevel

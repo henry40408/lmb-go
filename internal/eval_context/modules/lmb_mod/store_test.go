@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/henry40408/lmb/internal/eval_context/testutil"
+	"github.com/henry40408/lmb/internal/eval_context/modules/testutil"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	"github.com/henry40408/lmb/internal/store"
 	"github.com/stretchr/testify/assert"
@@ -135,6 +135,28 @@ func TestStoreUpdateConcurrency(t *testing.T) {
 	value, err := store.Get("counter")
 	assert.NoError(t, err)
 	assert.Equal(t, int64(count), value)
+}
+
+func TestStoreUpdateReturn(t *testing.T) {
+	L, _, store := setupEvalContext()
+	defer store.Close()
+	defer L.Close()
+
+	err := L.DoString(`
+  local m = require('lmb')
+  return m.store:update(function (tx)
+    tx['counter'] = 1
+    return 1949
+  end)
+  `)
+	assert.NoError(t, err)
+
+	counter, err := store.Get("counter")
+	assert.NoError(t, err)
+	assert.Equal(t, int64(1), counter)
+
+	res := lua_convert.FromLuaValue(L.Get(-1))
+	assert.Equal(t, int64(1949), res)
 }
 
 func setupEvalContext() (*lua.LState, *sync.Map, *store.Store) {

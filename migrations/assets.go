@@ -1,6 +1,6 @@
-package lmb
+package migrations
 
 import "embed"
 
-//go:embed migrations/*.sql
+//go:embed *.sql
 var MigrationFiles embed.FS

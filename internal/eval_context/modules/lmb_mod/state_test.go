@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/henry40408/lmb/internal/eval_context/testutil"
+	"github.com/henry40408/lmb/internal/eval_context/modules/testutil"
 	"github.com/henry40408/lmb/internal/lua_convert"
 	"github.com/henry40408/lmb/internal/store"
 	"github.com/stretchr/testify/assert"
