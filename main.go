@@ -1,7 +1,13 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/henry40408/lmb/cmd"
+)
 
 func main() {
-	fmt.Println("Hello, world")
+	if err := cmd.Execute(); err != nil {
+		os.Exit(101)
+	}
 }
