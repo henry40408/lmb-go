@@ -80,7 +80,7 @@ func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Write
 	L.PreloadModule("url", urlMod.Loader)
 
 	L.PreloadModule("io", io_mod.NewIoMod(e.input, w).Loader)
-	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state, e.store).Loader)
+	L.PreloadModule("@lmb", lmb_mod.NewLmbModule(state, e.store).Loader)
 	return L
 }
 

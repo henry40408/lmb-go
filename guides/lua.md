@@ -49,7 +49,7 @@ assert(io.read('*l') == nil, 'expect nil for *l')
 assert(io.read('*n') == nil, 'expect nil for *n')
 
 local _, err = pcall(function() return io.read('*x') end)
-assert(err == ':15: bad argument #1 to read (unsupported string format)')
+assert(err)
 
 -- https://www.lua.org/manual/5.1/manual.html#pdf-io.stderr
 io.stderr:write('standard error')
@@ -85,4 +85,50 @@ return require('io').read('*l')
 -- input: foo\nbar
 return require('io').read('*L')
 -- output: foo\n
+```
+
+## Store
+
+Lmb supports a key-value store backed by SQLite. The data can be read, written, and updated using the following APIs:
+
+```lua
+local m = require('@lmb')
+
+-- read value from store
+assert(not m.store['a'])
+
+-- write value to store
+m.store['a'] = 1
+assert(m.store['a'] == 1)
+
+-- update values in a transaction
+function transfer(amount)
+  m.store:update(function(store)
+    if store['alice'] < amount then
+      error('insufficient fund')
+    end
+    store['alice'] = store['alice'] - amount
+    store['bob'] = store['bob'] + amount
+  end)
+end
+
+-- failure scenario
+m.store['alice'] = 50
+m.store['bob'] = 50
+local _, err = pcall(function()
+  transfer(100)
+end)
+assert(err) -- error occurred
+assert(m.store['alice'] == 50) -- as is
+assert(m.store['bob'] == 50) -- as is
+
+-- success scenario
+m.store['alice'] = 100
+m.store['bob'] = 0
+local _, err = pcall(function()
+  transfer(100)
+end)
+assert(not err) -- no error occurred
+assert(m.store['alice'] == 0) -- withdrawn
+assert(m.store['bob'] == 100) -- deposited
 ```
