@@ -49,7 +49,7 @@ assert(io.read('*l') == nil, 'expect nil for *l')
 assert(io.read('*n') == nil, 'expect nil for *n')
 
 local _, err = pcall(function() return io.read('*x') end)
-assert(err)
+assert(tostring(err):find('unsupported string format'))
 
 -- https://www.lua.org/manual/5.1/manual.html#pdf-io.stderr
 io.stderr:write('standard error')
@@ -118,7 +118,7 @@ m.store['bob'] = 50
 local _, err = pcall(function()
   transfer(100)
 end)
-assert(err) -- error occurred
+assert(tostring(err):find('insufficient fund')) -- error occurred
 assert(m.store['alice'] == 50) -- as is
 assert(m.store['bob'] == 50) -- as is
 
