@@ -58,6 +58,9 @@ func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Write
 	}{
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
+		{lua.MathLibName, lua.OpenMath},
+		{lua.StringLibName, lua.OpenString},
+		{lua.TabLibName, lua.OpenTable},
 	} {
 		if err := L.CallByParam(lua.P{
 			Fn:      L.NewFunction(pair.f),
