@@ -28,25 +28,27 @@ import (
 )
 
 type EvalContext struct {
-	compiled sync.Map
-	input    *bufio.Reader
-	store    *store.Store
+	compiled   sync.Map
+	httpClient *http.Client
+	input      *bufio.Reader
+	store      *store.Store
 }
 
-func NewEvalContext(store *store.Store, input io.Reader) *EvalContext {
+func NewEvalContext(store *store.Store, input io.Reader, httpClient *http.Client) *EvalContext {
 	return &EvalContext{
-		compiled: sync.Map{},
-		input:    bufio.NewReader(input),
-		store:    store,
+		compiled:   sync.Map{},
+		httpClient: httpClient,
+		input:      bufio.NewReader(input),
+		store:      store,
 	}
 }
 
-func NewTestEvalContext(input io.Reader) (*EvalContext, *store.Store) {
+func NewTestEvalContext(input io.Reader, httpClient *http.Client) (*EvalContext, *store.Store) {
 	store, err := store.NewStore(":memory:")
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	return NewEvalContext(store, input), store
+	return NewEvalContext(store, input, httpClient), store
 }
 
 func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Writer) *lua.LState {

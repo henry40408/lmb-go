@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"os"
 	"regexp"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/h2non/gock"
 	"github.com/henry40408/lmb/internal/eval_context"
 	"github.com/henry40408/lmb/internal/store"
 	"github.com/stretchr/testify/assert"
@@ -24,6 +26,18 @@ var (
 )
 
 func TestGuide(t *testing.T) {
+	defer gock.Off()
+
+	gock.New("https://httpbingo.org/headers").
+		Reply(200).
+		AddHeader("content-type", "application/json").
+		JSON(map[string]interface{}{
+			"headers": map[string]string{
+				"content-type": "application/json",
+				"I-Am":         "A teapot",
+			},
+		})
+
 	blocks, err := extractCodeBlocks("guides/lua.md")
 	assert.NoError(t, err)
 
@@ -41,7 +55,7 @@ func TestGuide(t *testing.T) {
 			// 2. Remove extra '\n' on Windows
 			input = strings.ReplaceAll(strings.ReplaceAll(inMatches[1], "\\n", "\n"), "\r", "")
 		}
-		e := eval_context.NewEvalContext(store, strings.NewReader(input))
+		e := eval_context.NewEvalContext(store, strings.NewReader(input), http.DefaultClient)
 
 		c, err := e.Compile(strings.NewReader(block), "")
 		assert.NoError(t, err)

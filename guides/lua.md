@@ -132,3 +132,23 @@ assert(not err) -- no error occurred
 assert(m.store['alice'] == 0) -- withdrawn
 assert(m.store['bob'] == 100) -- deposited
 ```
+
+## HTTP `http`
+
+Lmb is able to send HTTP requests. The following example sends a GET request to https://httpbin.org/headers with the header `I-Am: A teapot`:
+
+```lua
+local http = require('http')
+local json = require('json')
+
+local res, err = http.get('https://httpbingo.org/headers', {
+  headers = {
+    ['I-Am'] = 'A teapot',
+  },
+})
+assert(not err, tostring(err))
+assert('application/json' == res.headers['Content-Type'])
+
+local parsed = json.decode(res.body)
+assert('A teapot' == parsed['headers']['I-Am'], parsed)
+```

@@ -115,7 +115,12 @@ var (
 			if err != nil {
 				return err
 			}
-			e := eval_context.NewEvalContext(store, os.Stdin)
+			parsedHttpTimeout, err := time.ParseDuration(httpTimeout)
+			if err != nil {
+				return err
+			}
+			httpClient := http.Client{Timeout: parsedHttpTimeout}
+			e := eval_context.NewEvalContext(store, os.Stdin, &httpClient)
 
 			var reader io.Reader
 			if scriptPath == "-" {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -33,7 +34,12 @@ var (
 				return err
 			}
 			defer store.Close()
-			e := eval_context.NewEvalContext(store, os.Stdin)
+			parsedHttpTimeout, err := time.ParseDuration(httpTimeout)
+			if err != nil {
+				return err
+			}
+			httpClient := http.Client{Timeout: parsedHttpTimeout}
+			e := eval_context.NewEvalContext(store, os.Stdin, &httpClient)
 
 			ctx, cancel, err := setupTimeoutContext(timeout)
 			if err != nil {

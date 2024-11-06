@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 }
 
 func BenchmarkCompile(b *testing.B) {
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	for range b.N {
 		e.Compile(strings.NewReader("return 1"), "a")
 	}
@@ -31,7 +31,7 @@ func BenchmarkCompile(b *testing.B) {
 
 func BenchmarkEvalCompiled(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	compiled, _ := e.Compile(strings.NewReader("return 1"), "a")
 	for range b.N {
 		var w bytes.Buffer
@@ -44,7 +44,7 @@ func BenchmarkEvalCompiled(b *testing.B) {
 
 func BenchmarkEvalConcurrency(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	compiled, _ := e.Compile(strings.NewReader(`
   local m = require('@lmb')
   m.store:update(function(store)
@@ -63,7 +63,7 @@ func BenchmarkEvalConcurrency(b *testing.B) {
 
 func BenchmarkEvalScript(b *testing.B) {
 	var state sync.Map
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	for range b.N {
 		var w bytes.Buffer
 		e.EvalScript(context.Background(), "return 1", &state, &w)
@@ -86,7 +86,7 @@ func TestEval(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			e, _ := NewTestEvalContext(strings.NewReader(""))
+			e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 			var w bytes.Buffer
 			res, err := e.EvalScript(context.Background(), tc.script, &state, &w)
 			assert.NoError(t, err)
@@ -97,7 +97,7 @@ func TestEval(t *testing.T) {
 
 func TestEvalWithTimeout(t *testing.T) {
 	var state sync.Map
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
 	defer cancel()
 	var w bytes.Buffer
@@ -115,7 +115,7 @@ func TestEvalReader(t *testing.T) {
 	matches, err := filepath.Glob("../lua-examples/*.lua")
 	assert.NoError(t, err)
 	for _, path := range matches {
-		e, _ := NewTestEvalContext(strings.NewReader(""))
+		e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 		file, err := os.Open(path)
 		assert.NoError(t, err)
 		defer file.Close()
@@ -126,7 +126,7 @@ func TestEvalReader(t *testing.T) {
 }
 
 func TestParse(t *testing.T) {
-	e, _ := NewTestEvalContext(strings.NewReader(""))
+	e, _ := NewTestEvalContext(strings.NewReader(""), http.DefaultClient)
 	_, err := e.Parse(strings.NewReader("ret 1"), "invalid")
 	assert.ErrorContains(t, err, "line:1(column:5)")
 }
