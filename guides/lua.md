@@ -152,3 +152,23 @@ assert('application/json' == res.headers['Content-Type'])
 local parsed = json.decode(res.body)
 assert('A teapot' == parsed['headers']['I-Am'], parsed)
 ```
+
+## JSON `json`
+
+JSON is a common format used to send HTTP requests. Lmb supports both encoding and decoding JSON data:
+
+```lua
+local json = require('json')
+assert('{"bool":true,"num":1.23,"str":"string"}' == json.encode({ bool = true, num = 1.23, str = 'string' }))
+assert('[true,1.23,"string"]' == json.encode({ true, 1.23, 'string' }))
+
+local decoded = json.decode('{"bool":true,"num":1.23,"str":"string"}')
+assert(true == decoded.bool)
+assert(1.23 == decoded.num)
+assert('string' == decoded.str)
+
+local decoded = json.decode('[true,1.23,"string"]')
+assert(true == decoded[1])
+assert(1.23 == decoded[2])
+assert('string' == decoded[3])
+```
