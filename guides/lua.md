@@ -172,3 +172,13 @@ assert(true == decoded[1])
 assert(1.23 == decoded[2])
 assert('string' == decoded[3])
 ```
+
+## Cryptography `crypto`
+
+When receiving webhook events from another service, e.g. [GitHub](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries), it's secure to validate them before processing.
+
+```lua
+local crypto = require('crypto')
+assert('2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' == crypto.sha256('hello'))
+assert('88aab3ede8d3adf94d26ab90d3bafd4a2083070c3bcce9c014ee04a443847c0b' == crypto.hmac('sha256', 'hello', 'secret'))
+```
