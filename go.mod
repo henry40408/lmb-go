@@ -13,10 +13,13 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/tengattack/gluacrypto v0.0.0-20240324200146-54b58c95c255
 	github.com/yuin/gluare v0.0.0-20170607022532-d7c94f1a80ed
+	github.com/yuin/goldmark v1.7.4
 	github.com/yuin/gopher-lua v1.1.1
 )
 
 require (
+	github.com/h2non/gock v1.2.0 // indirect
+	github.com/h2non/parth v0.0.0-20190131123155-b4df798d6542 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

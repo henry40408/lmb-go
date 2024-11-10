@@ -28,29 +28,31 @@ import (
 )
 
 type EvalContext struct {
-	compiled sync.Map
-	input    *bufio.Reader
-	store    *store.Store
+	compiled   sync.Map
+	httpClient *http.Client
+	input      *bufio.Reader
+	store      *store.Store
 }
 
-func NewEvalContext(store *store.Store, input io.Reader) *EvalContext {
+func NewEvalContext(store *store.Store, input io.Reader, httpClient *http.Client) *EvalContext {
 	return &EvalContext{
-		compiled: sync.Map{},
-		input:    bufio.NewReader(input),
-		store:    store,
+		compiled:   sync.Map{},
+		httpClient: httpClient,
+		input:      bufio.NewReader(input),
+		store:      store,
 	}
 }
 
-func NewTestEvalContext(input io.Reader) (*EvalContext, *store.Store) {
+func NewTestEvalContext(input io.Reader, httpClient *http.Client) (*EvalContext, *store.Store) {
 	store, err := store.NewStore(":memory:")
 	if err != nil {
 		log.Fatal().Err(err).Msg("")
 	}
-	return NewEvalContext(store, input), store
+	return NewEvalContext(store, input, httpClient), store
 }
 
 func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Writer) *lua.LState {
-	L := lua.NewState()
+	L := lua.NewState(lua.Options{SkipOpenLibs: true})
 	L.SetContext(ctx)
 	for _, pair := range []struct {
 		n string
@@ -58,6 +60,9 @@ func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Write
 	}{
 		{lua.LoadLibName, lua.OpenPackage},
 		{lua.BaseLibName, lua.OpenBase},
+		{lua.MathLibName, lua.OpenMath},
+		{lua.StringLibName, lua.OpenString},
+		{lua.TabLibName, lua.OpenTable},
 	} {
 		if err := L.CallByParam(lua.P{
 			Fn:      L.NewFunction(pair.f),
@@ -80,7 +85,7 @@ func (e *EvalContext) initState(ctx context.Context, state *sync.Map, w io.Write
 	L.PreloadModule("url", urlMod.Loader)
 
 	L.PreloadModule("io", io_mod.NewIoMod(e.input, w).Loader)
-	L.PreloadModule("lmb", lmb_mod.NewLmbModule(state, e.store).Loader)
+	L.PreloadModule("@lmb", lmb_mod.NewLmbModule(state, e.store).Loader)
 	return L
 }
 

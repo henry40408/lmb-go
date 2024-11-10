@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -22,7 +23,7 @@ var (
 		Long:  "Check syntax of Lua script",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			store, _ := store.NewStore(":memory:")
-			e := eval_context.NewEvalContext(store, strings.NewReader(""))
+			e := eval_context.NewEvalContext(store, strings.NewReader(""), http.DefaultClient)
 
 			var reader io.Reader
 			if scriptPath == "-" {
