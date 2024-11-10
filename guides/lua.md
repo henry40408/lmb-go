@@ -1,7 +1,5 @@
 # Lua Guide
 
-## Lua version
-
 ## Language Variant and Version
 
 Lmb currently uses GopherLua.
