@@ -177,6 +177,11 @@ When receiving webhook events from another service, e.g. [GitHub](https://docs.g
 
 ```lua
 local crypto = require('crypto')
-assert('2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824' == crypto.sha256('hello'))
-assert('88aab3ede8d3adf94d26ab90d3bafd4a2083070c3bcce9c014ee04a443847c0b' == crypto.hmac('sha256', 'hello', 'secret'))
+assert(crypto.base64_encode('') == '')
+assert(crypto.crc32('') == '00000000')
+assert(crypto.md5('') == 'd41d8cd98f00b204e9800998ecf8427e')
+assert(crypto.sha1('') == 'da39a3ee5e6b4b0d3255bfef95601890afd80709')
+assert(crypto.sha256('') == 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+assert(crypto.sha512('') == 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')
+assert(crypto.hmac('sha256', '', 'secret') == 'f9e66e179b6747ae54108f82f8ade8b3c25d76fd30afde6c395822c530196169')
 ```
