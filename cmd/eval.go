@@ -18,6 +18,7 @@ import (
 
 func init() {
 	evalCmd.Flags().StringVar(&scriptPath, "file", "", "Script path (use '-' for stdin)")
+	evalCmd.MarkFlagRequired("file")
 	rootCmd.AddCommand(evalCmd)
 }
 

@@ -13,6 +13,7 @@ import (
 
 func init() {
 	checkSyntaxCmd.Flags().StringVar(&scriptPath, "file", "", "Script path (use '-' for stdin)")
+	checkSyntaxCmd.MarkFlagRequired("file")
 	rootCmd.AddCommand(checkSyntaxCmd)
 }
 

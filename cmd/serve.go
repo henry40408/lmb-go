@@ -219,3 +219,7 @@ var (
 			return nil
 		}}
 )
+
+func init() {
+	serveCmd.MarkFlagRequired("file")
+}
